@@ -1,0 +1,122 @@
+"""Convert Events to flat table rows and back.
+
+Nested blocks (target, content, interaction, moderation) become prefixed columns,
+so later feature queries can read plain columns such as ``text_hash`` or
+``target_owner_id`` directly with SQL, without unpacking nested structures.
+"""
+
+import json
+from typing import Any
+
+import pyarrow as pa
+
+from riskdetect.schema import Event
+
+_TS = pa.timestamp("us", tz="UTC")
+
+EVENT_SCHEMA = pa.schema(
+    [
+        ("event_id", pa.string()),
+        ("schema_version", pa.int16()),
+        ("platform", pa.string()),
+        ("actor_id", pa.string()),
+        ("event_type", pa.string()),
+        ("occurred_at", _TS),
+        ("ingested_at", _TS),
+        ("space_id", pa.string()),
+        ("target_type", pa.string()),
+        ("target_id", pa.string()),
+        ("target_owner_id", pa.string()),
+        ("content_kind", pa.string()),
+        ("visibility", pa.string()),
+        ("text_hash", pa.string()),
+        ("simhash", pa.uint64()),
+        ("content_length", pa.int32()),
+        ("language", pa.string()),
+        ("url_domains", pa.list_(pa.string())),
+        ("mention_count", pa.int32()),
+        ("interaction_kind", pa.string()),
+        ("interaction_value", pa.float64()),
+        ("moderation_action", pa.string()),
+        ("moderation_source", pa.string()),
+        ("moderation_reason", pa.string()),
+        ("attributes", pa.string()),  # JSON text; platform extras are never queried by core logic
+    ]
+)
+EVENT_COLUMNS = tuple(EVENT_SCHEMA.names)
+
+
+def event_to_row(event: Event) -> dict[str, Any]:
+    target, content = event.target, event.content
+    interaction, moderation = event.interaction, event.moderation
+    return {
+        "event_id": event.event_id,
+        "schema_version": event.schema_version,
+        "platform": event.platform,
+        "actor_id": event.actor_id,
+        "event_type": str(event.event_type),
+        "occurred_at": event.occurred_at,
+        "ingested_at": event.ingested_at,
+        "space_id": event.space_id,
+        "target_type": str(target.type) if target else None,
+        "target_id": target.id if target else None,
+        "target_owner_id": target.owner_actor_id if target else None,
+        "content_kind": str(content.kind) if content else None,
+        "visibility": str(content.visibility) if content else None,
+        "text_hash": content.text_hash if content else None,
+        "simhash": content.simhash if content else None,
+        "content_length": content.length if content else None,
+        "language": content.language if content else None,
+        "url_domains": list(content.url_domains) if content else None,
+        "mention_count": content.mention_count if content else None,
+        "interaction_kind": str(interaction.kind) if interaction else None,
+        "interaction_value": interaction.value if interaction else None,
+        "moderation_action": str(moderation.action) if moderation else None,
+        "moderation_source": str(moderation.source) if moderation else None,
+        "moderation_reason": moderation.reason_category if moderation else None,
+        "attributes": json.dumps(event.attributes, sort_keys=True) if event.attributes else None,
+    }
+
+
+def events_to_table(events: list[Event]) -> pa.Table:
+    return pa.Table.from_pylist([event_to_row(e) for e in events], schema=EVENT_SCHEMA)
+
+
+def row_to_event(row: dict[str, Any]) -> Event:
+    data: dict[str, Any] = {
+        "event_id": row["event_id"],
+        "schema_version": row["schema_version"],
+        "platform": row["platform"],
+        "actor_id": row["actor_id"],
+        "event_type": row["event_type"],
+        "occurred_at": row["occurred_at"],
+        "ingested_at": row["ingested_at"],
+        "space_id": row["space_id"],
+        "attributes": json.loads(row["attributes"]) if row["attributes"] else {},
+    }
+    if row["target_type"] is not None:
+        data["target"] = {
+            "type": row["target_type"],
+            "id": row["target_id"],
+            "owner_actor_id": row["target_owner_id"],
+        }
+    if row["content_kind"] is not None:
+        data["content"] = {
+            "kind": row["content_kind"],
+            "visibility": row["visibility"],
+            "text_hash": row["text_hash"],
+            "simhash": row["simhash"],
+            "length": row["content_length"],
+            "language": row["language"],
+            "url_domains": row["url_domains"] or (),
+            "mention_count": row["mention_count"] or 0,
+        }
+    if row["interaction_kind"] is not None:
+        data["interaction"] = {"kind": row["interaction_kind"], "value": row["interaction_value"]}
+    if row["moderation_action"] is not None:
+        data["moderation"] = {
+            "action": row["moderation_action"],
+            "source": row["moderation_source"],
+            "reason_category": row["moderation_reason"],
+        }
+    return Event.model_validate(data)

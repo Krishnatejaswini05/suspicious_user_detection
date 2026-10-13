@@ -1,9 +1,14 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from riskdetect.schema import Event
 from riskdetect.synthetic import Scenario, SimulationResult, simulate
+
+EventFactory = Callable[..., Event]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,3 +39,24 @@ def tiny_scenario() -> Scenario:
 @pytest.fixture(scope="session")
 def tiny_result() -> SimulationResult:
     return simulate(TINY)
+
+
+@pytest.fixture
+def make_event() -> EventFactory:
+    """Build a valid CONTENT_CREATED event; keyword arguments override any field."""
+    counter = iter(range(1, 1_000_000))
+
+    def factory(**overrides: Any) -> Event:
+        n = next(counter)
+        data: dict[str, Any] = {
+            "event_id": f"synthetic_forum:e{n}",
+            "platform": "synthetic_forum",
+            "actor_id": "u1",
+            "event_type": "CONTENT_CREATED",
+            "occurred_at": datetime(2026, 8, 1, 10, 0, tzinfo=UTC),
+            "content": {"kind": "post", "text_hash": f"{n:064x}"},
+        }
+        data.update(overrides)
+        return Event.model_validate(data)
+
+    return factory

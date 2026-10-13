@@ -25,7 +25,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 1: project setup and the canonical schema (`riskdetect.schema`). Done.
 - Milestone 2a: config-driven adapters (`riskdetect.adapters`). Done.
 - Milestone 2b: synthetic data simulator (`riskdetect.synthetic`). Done.
-- Milestone 3: storage and ingestion. Next.
+- Milestone 3: storage and ingestion (`riskdetect.storage`, `riskdetect.ingestion`). Done.
+- Milestone 4: behavioral features. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -38,6 +39,17 @@ python -m riskdetect.synthetic                  # uses configs/scenarios/basic_v
 This writes raw files for three simulated platforms (forum, chat, marketplace) under
 `data/raw/` and the hidden answer key to `data/labels/answer_key.parquet`. The same
 seed always produces the same data.
+
+## Load data into the event store
+
+```bash
+python -m riskdetect.ingestion                  # every platform in configs/platforms/
+python -m riskdetect.ingestion --platform synthetic_forum
+```
+
+Raw files are translated by the adapters, deduplicated, and stored as Parquet under
+`data/events/platform=<p>/date=<YYYY-MM-DD>/`. Rejected rows go to `data/quarantine/`.
+Loading the same files again stores nothing new.
 
 ## Setup
 
@@ -67,10 +79,12 @@ src/riskdetect/
   schema/           the common, platform-neutral data format
   adapters/         raw platform data -> Events, using the platform YAML
   synthetic/        simulated users and platforms with a known answer key
+  ingestion/        the front door: dedupe, store, publish; quarantine rejections
+  storage/          where data lives (Parquet + DuckDB); the only package that knows that
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`ingestion`, `storage`, `features`,
+Further packages (`features`,
 `realtime`, `rules`, `models`, `scoring`, `explain`, `labels`, `evaluation`,
 `serving`) are added milestone by milestone; see the design doc.
