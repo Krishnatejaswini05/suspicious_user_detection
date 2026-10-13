@@ -66,6 +66,8 @@ class TestEventMapping:
         assert follow.interaction_kind is InteractionKind.FOLLOW
         assert follow.resolved_target_type is TargetType.ACTOR
         assert EventMapping.model_validate("ACCOUNT_CREATED").resolved_target_type is None
+        reply = EventMapping.model_validate("CONTENT_CREATED/reply")
+        assert reply.resolved_target_type is TargetType.CONTENT
 
 
 class TestPlatformConfig:

@@ -37,6 +37,8 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+# Word lists written as "a b c".split() read better than long list literals.
+ignore = ["SIM905"]
 
 [tool.mypy]
 python_version = "3.11"

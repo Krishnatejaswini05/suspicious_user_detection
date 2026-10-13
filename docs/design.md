@@ -1,6 +1,6 @@
 # riskdetect — Design
 
-Status: agreed design, implementation in progress (Milestone 1 complete: schema).
+Status: agreed design, implementation in progress (Milestones 1-2 complete).
 Key decisions are recorded as ADRs in [adr/](adr/).
 
 ## 1. Problem
@@ -193,8 +193,8 @@ on real data.
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Project setup, design docs, `schema/` | **Done** |
-| 2 | `synthetic/` simulator, config-driven `adapters/` | Next |
-| 3 | `storage/`, `ingestion/` | |
+| 2 | `synthetic/` simulator, config-driven `adapters/` | **Done** |
+| 3 | `storage/`, `ingestion/` | Next |
 | 4 | `features/` (batch) + leakage tests | |
 | 5 | `rules/`, basic `scoring/`, `explain/` | |
 | 6 | `realtime/` + realtime-equals-batch test | |

@@ -1,0 +1,27 @@
+# Simulated Discord-like chat. Parquet, Unix epoch milliseconds.
+# Reactions and joins carry no ID in this export, so their event IDs are derived.
+platform: synthetic_chat
+schema_version: 1
+
+source:
+  format: parquet
+  path: data/raw/synthetic_chat/
+  timezone: UTC
+
+fields:
+  event_id: msg_id
+  actor_id: user
+  occurred_at: time_ms
+  space_id: channel
+  text: content
+  urls: content
+  target_id: reply_to
+  target_owner_id: reply_to_user
+
+event_types:
+  from_field: event
+  values:
+    join: ACCOUNT_CREATED
+    message: CONTENT_CREATED/message
+    react: INTERACTION/react
+    report: REPORT_FILED

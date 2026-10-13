@@ -1,0 +1,31 @@
+# Simulated Reddit-like forum. JSON lines, ISO 8601 UTC timestamps.
+platform: synthetic_forum
+schema_version: 1
+
+source:
+  format: jsonl
+  path: data/raw/synthetic_forum/
+  timezone: UTC
+
+fields:
+  event_id: id
+  actor_id: author
+  occurred_at: ts
+  space_id: subforum
+  text: body
+  urls: body
+  language: lang
+  target_id: parent_id
+  target_owner_id: parent_author
+
+event_types:
+  from_field: kind
+  values:
+    signup: ACCOUNT_CREATED
+    submission: CONTENT_CREATED/post
+    comment: CONTENT_CREATED/reply
+    upvote: INTERACTION/vote_up
+    downvote: INTERACTION/vote_down
+    save: INTERACTION/save
+    follow: INTERACTION/follow
+    report: REPORT_FILED

@@ -1,0 +1,33 @@
+# Simulated marketplace. CSV, local India time without a timezone.
+# Only listings carry an ID; messages, favorites and reports get derived IDs.
+platform: synthetic_market
+schema_version: 1
+
+source:
+  format: csv
+  path: data/raw/synthetic_market/
+  timezone: Asia/Kolkata
+
+fields:
+  event_id: listing_id
+  actor_id: member_id
+  occurred_at: created_time
+  space_id: category
+  text: description
+  urls: description
+  target_id: target
+  target_owner_id: target_owner
+  attributes: [price]
+
+event_types:
+  from_field: action
+  values:
+    register: ACCOUNT_CREATED
+    new_listing: CONTENT_CREATED/listing
+    send_message:
+      event_type: CONTENT_CREATED
+      content_kind: message
+      visibility: private
+    favorite: INTERACTION/save
+    follow_seller: INTERACTION/follow
+    report: REPORT_FILED

@@ -38,6 +38,9 @@ _KIND_FIELD: dict[EventType, str] = {
     EventType.MODERATION_ACTION: "moderation_action",
 }
 _DEFAULT_TARGET: dict[EventType, TargetType] = {
+    # A reply or message about a listing points at content; a post without a parent
+    # simply has no target value, so no target is set.
+    EventType.CONTENT_CREATED: TargetType.CONTENT,
     EventType.CONTENT_EDITED: TargetType.CONTENT,
     EventType.CONTENT_DELETED: TargetType.CONTENT,
     EventType.INTERACTION: TargetType.CONTENT,

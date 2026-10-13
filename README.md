@@ -24,9 +24,20 @@ See [docs/design.md](docs/design.md) for the full design and
 
 - Milestone 1: project setup and the canonical schema (`riskdetect.schema`). Done.
 - Milestone 2a: config-driven adapters (`riskdetect.adapters`). Done.
-- Milestone 2b: synthetic data simulator. Next.
+- Milestone 2b: synthetic data simulator (`riskdetect.synthetic`). Done.
+- Milestone 3: storage and ingestion. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
+
+## Generate synthetic data
+
+```bash
+python -m riskdetect.synthetic                  # uses configs/scenarios/basic_v1.yaml, writes to data/
+```
+
+This writes raw files for three simulated platforms (forum, chat, marketplace) under
+`data/raw/` and the hidden answer key to `data/labels/answer_key.parquet`. The same
+seed always produces the same data.
 
 ## Setup
 
@@ -55,10 +66,11 @@ docs/               design and decision records
 src/riskdetect/
   schema/           the common, platform-neutral data format
   adapters/         raw platform data -> Events, using the platform YAML
+  synthetic/        simulated users and platforms with a known answer key
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`adapters`, `synthetic`, `ingestion`, `storage`, `features`,
+Further packages (`ingestion`, `storage`, `features`,
 `realtime`, `rules`, `models`, `scoring`, `explain`, `labels`, `evaluation`,
 `serving`) are added milestone by milestone; see the design doc.

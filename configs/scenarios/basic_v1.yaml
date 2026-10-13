@@ -1,0 +1,27 @@
+# Default simulation: three platforms, four weeks, mostly normal users plus
+# hard-but-innocent users and three kinds of bad actors.
+#
+# Run:  python -m riskdetect.synthetic --scenario configs/scenarios/basic_v1.yaml --out data
+# The same seed always produces exactly the same data.
+
+name: basic_v1
+seed: 42
+start: 2026-08-01T00:00:00Z
+duration_days: 28
+
+platforms:              # platform -> number of users
+  synthetic_forum: 500
+  synthetic_chat: 300
+  synthetic_market: 300
+
+persona_mix:            # shares; they are normalized, so they need not sum to exactly 1
+  normal: 0.80
+  enthusiastic_new: 0.05
+  power_user: 0.04
+  lurker: 0.06
+  spam_bot: 0.02
+  slow_spammer: 0.02
+  hijacked: 0.01
+
+noise_rate: 0.001       # share of junk rows with an unmapped action (exercises rejections)
+busy_days: 1            # days when everyone is twice as active (not abuse)
