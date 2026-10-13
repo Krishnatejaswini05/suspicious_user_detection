@@ -1,0 +1,55 @@
+# Template for connecting a new platform.
+#
+# 1. Copy this file to configs/platforms/<platform>.yaml (the file name must match `platform`).
+# 2. Fill in the column names and action mapping for your data.
+# 3. Check it:  the mapping report lists rejected rows and which fields have data.
+#
+# This file describes the platform's DATA only. Never put detection logic here.
+
+platform: my_platform           # lowercase letters, digits and _ ; must match the file name
+schema_version: 1
+
+source:
+  format: csv                   # csv | jsonl | parquet
+  path: data/raw/my_platform/   # a file, or a folder of files (relative to the project root)
+  timezone: UTC                 # used only for timestamps that carry no timezone, e.g. Asia/Kolkata
+
+fields:                         # raw column name for each canonical field
+  actor_id: user_id             # required
+  occurred_at: created_at       # required: ISO 8601 text, or Unix epoch seconds/milliseconds
+  event_id: id                  # optional but recommended: the platform's own unique ID
+  space_id: community           # optional: where it happened
+  text: body                    # optional: hashed into fingerprints, then discarded
+  urls: body                    # optional: a text column to scan for links, or a list of URLs
+  language: lang                # optional: language code such as en, te
+  target_id: parent_id          # optional: what the action was aimed at
+  target_owner_id: parent_author  # optional: who owns the target
+  attributes: []                # optional: extra columns to keep as-is. Never list free-text columns.
+
+event_types:
+  from_field: action            # the column that says what happened
+  values:
+    # raw value: CANONICAL_TYPE[/kind]
+    post: CONTENT_CREATED/post
+    comment: CONTENT_CREATED/reply
+    edit: CONTENT_EDITED/post
+    delete: CONTENT_DELETED
+    upvote: INTERACTION/vote_up
+    follow: INTERACTION/follow  # follow targets a user automatically
+    report: REPORT_FILED
+    signup: ACCOUNT_CREATED
+    # Full form when more detail is needed:
+    dm:
+      event_type: CONTENT_CREATED
+      content_kind: message
+      visibility: private
+    mod_ban:
+      event_type: MODERATION_ACTION
+      moderation_action: ban
+      moderation_source: human
+
+privacy:
+  pseudonymize_ids: false       # true: replace user IDs with stable anonymous IDs
+  salt_env: RISKDETECT_ID_SALT  # environment variable holding the secret salt
+
+overrides: {}                   # rare exceptions only, e.g. {rules: {max_posts_per_10min: 5}}

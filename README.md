@@ -22,7 +22,11 @@ See [docs/design.md](docs/design.md) for the full design and
 
 ## Status
 
-Milestone 1: project setup and the canonical schema (`riskdetect.schema`).
+- Milestone 1: project setup and the canonical schema (`riskdetect.schema`). Done.
+- Milestone 2a: config-driven adapters (`riskdetect.adapters`). Done.
+- Milestone 2b: synthetic data simulator. Next.
+
+To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
 ## Setup
 
@@ -50,6 +54,7 @@ configs/            settings: shared logic + one YAML file per platform
 docs/               design and decision records
 src/riskdetect/
   schema/           the common, platform-neutral data format
+  adapters/         raw platform data -> Events, using the platform YAML
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```

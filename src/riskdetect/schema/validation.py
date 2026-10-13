@@ -24,6 +24,9 @@ class RejectionReason(StrEnum):
     INVALID_STRUCTURE = "invalid_structure"
     UNSUPPORTED_SCHEMA_VERSION = "unsupported_schema_version"
     FUTURE_TIMESTAMP = "future_timestamp"
+    # Raised by adapters, before an Event can be built.
+    UNMAPPED_ACTION = "unmapped_action"
+    INVALID_TIMESTAMP = "invalid_timestamp"
 
 
 @dataclass(frozen=True, slots=True)
