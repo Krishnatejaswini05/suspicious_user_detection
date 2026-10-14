@@ -1,0 +1,32 @@
+# How rule hits (and, later, model scores) become a final score, confidence and tier.
+
+version: 1
+
+# Fired rules combine: score = 1 - product of (1 - strength). Without any strong rule
+# (one with a score_floor), weak signals together can raise a score only this far,
+# which is below `review_from`: escalating to a person needs a strong signal.
+max_weight_score: 0.55
+
+# Confidence comes from how much we have seen of the user. Fewer events than
+# `medium_from` = low; fewer than `high_from` = medium; otherwise high.
+confidence:
+  medium_from: 10
+  high_from: 40
+
+# Score thresholds for each tier. HIGH also requires high confidence, unless a rule
+# with severity "critical" fired. So a user we know little about can reach REVIEW
+# (a person looks) but never HIGH on thin evidence.
+tiers:
+  watch_from: 0.3
+  review_from: 0.6
+  high_from: 0.85
+
+# Recommendations only: the platform decides what to do.
+actions:
+  LOW: []
+  WATCH: [monitor]
+  REVIEW: [send_to_review]
+  HIGH: [send_to_review, rate_limit, hold_new_content]
+
+# Allowlisted accounts (staff, official bots) never score above this.
+allowlist_cap: 0.2

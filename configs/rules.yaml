@@ -1,0 +1,106 @@
+# Detection rules. Shared by every platform: platform files never contain logic.
+#
+# A rule fires when its condition holds for a user's features (as of a moment).
+# - Count features are used as percentiles within the platform (<name>_pct), so a
+#   threshold like "top 1%" means the same on every platform.
+# - A missing value (unknown) never satisfies a comparison, so "unknown" never triggers.
+# - A rule may not look at account age alone; the loader rejects such rules.
+#
+# Fields:
+#   score_floor  a strong signal: the score is at least this when the rule fires
+#   weight       a weaker signal: on its own it can raise the score only to WATCH
+#   Several fired rules combine: each removes a share of the remaining doubt
+#   (0.75 and 0.6 together give 1 - 0.25 * 0.4 = 0.9).
+#   category     which kind of abuse the rule points to: spam, bot, hijacked, scam, coordinated
+#   mode         active (affects scores) or shadow (only recorded, to test a new rule safely)
+#   reason       readable explanation; {feature} placeholders are filled with the values
+
+version: 1
+
+rules:
+  - id: R001_duplicate_burst
+    description: A burst of near-identical posts.
+    category: spam
+    score_floor: 0.75
+    when:
+      all:
+        - {feature: posts_1h_pct, op: ">=", value: 99}
+        - {feature: posts_1h, op: ">=", value: 5}
+        - {feature: duplicate_ratio_24h, op: ">=", value: 0.8}
+    reason: >-
+      Posted {posts_1h:.0f} times in the last hour (percentile {posts_1h_pct:.1f} on this platform),
+      and {duplicate_ratio_24h:.0%} of the last day's posts are near-identical
+
+  - id: R002_machine_like_posting
+    description: Posting at near-fixed intervals around the clock, at high volume.
+    category: bot
+    score_floor: 0.7
+    when:
+      all:
+        - {feature: timing_regularity, op: ">=", value: 0.85}
+        - {feature: active_hours_7d, op: ">=", value: 18}
+        - {feature: posts_24h_pct, op: ">=", value: 90}
+    reason: >-
+      Actions come at almost exactly equal intervals (regularity {timing_regularity:.2f})
+      and at {active_hours_7d:.0f} different hours of the day this week
+
+  - id: R003_link_campaign
+    description: Repeatedly pushing the same website with copied posts.
+    category: spam
+    score_floor: 0.6
+    when:
+      all:
+        - {feature: link_ratio_7d, op: ">=", value: 0.7}
+        - {feature: top_domain_share_7d, op: ">=", value: 0.9}
+        - {feature: duplicate_ratio_7d, op: ">=", value: 0.5}
+    reason: >-
+      {link_ratio_7d:.0%} of this week's posts contain a link, {top_domain_share_7d:.0%} of links
+      go to the same website, and {duplicate_ratio_7d:.0%} of posts repeat earlier ones
+
+  - id: R004_sudden_change_to_spam
+    description: An established account suddenly posting far more, and spammy.
+    category: hijacked
+    score_floor: 0.6
+    when:
+      all:
+        - {feature: account_age_days, op: ">=", value: 30}
+        - {feature: rate_vs_baseline, op: ">=", value: 4}
+        - any:
+            - {feature: duplicate_ratio_24h, op: ">=", value: 0.5}
+            - {feature: link_ratio_7d, op: ">=", value: 0.5}
+    reason: >-
+      Activity is {rate_vs_baseline:.1f}x this {account_age_days:.0f}-day-old account's usual level,
+      with repeated posts or links
+
+  - id: R005_reported_and_ignored
+    description: Content that others report a lot and rarely reply to.
+    category: spam
+    weight: 0.35
+    when:
+      all:
+        - {feature: reports_received_7d_pct, op: ">=", value: 98}
+        - {feature: reports_received_7d, op: ">=", value: 3}
+        - {feature: replies_per_post_7d, op: "<", value: 0.3}
+    reason: >-
+      Received {reports_received_7d:.0f} reports this week (percentile {reports_received_7d_pct:.1f}
+      on this platform) and few replies ({replies_per_post_7d:.2f} per post)
+
+  - id: R006_shortened_links
+    description: Most posts use URL shorteners, which hide where links go.
+    category: spam
+    weight: 0.2
+    when:
+      all:
+        - {feature: shortener_ratio_7d, op: ">=", value: 0.6}
+        - {feature: posts_7d, op: ">=", value: 5}
+    reason: "{shortener_ratio_7d:.0%} of this week's posts use URL shorteners such as bit.ly"
+
+  - id: R007_copy_paste_heavy
+    description: Most recent posts copy earlier ones (a weaker, slower signal).
+    category: spam
+    weight: 0.3
+    when:
+      all:
+        - {feature: duplicate_ratio_7d, op: ">=", value: 0.6}
+        - {feature: posts_7d, op: ">=", value: 5}
+    reason: "{duplicate_ratio_7d:.0%} of this week's {posts_7d:.0f} posts repeat earlier ones"

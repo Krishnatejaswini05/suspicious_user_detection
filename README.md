@@ -27,7 +27,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 2b: synthetic data simulator (`riskdetect.synthetic`). Done.
 - Milestone 3: storage and ingestion (`riskdetect.storage`, `riskdetect.ingestion`). Done.
 - Milestone 4: behavioral features (`riskdetect.features`). Done.
-- Milestone 5: rules, basic scoring and explanations. Next.
+- Milestone 5: rules, scoring and explanations (`rules`, `scoring`, `explain`). Done.
+- Milestone 6: realtime scoring. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -62,6 +63,17 @@ Each snapshot holds every active user's features as of that moment, computed onl
 from earlier events. Count features also get a `<name>_pct` column: their percentile
 within the platform. Output: `data/features/platform=<p>/snapshots.parquet`.
 
+## Score users
+
+```bash
+python -m riskdetect.scoring                    # latest snapshot, every platform
+```
+
+Rules ([configs/rules.yaml](configs/rules.yaml)) fire on features; scoring
+([configs/scoring.yaml](configs/scoring.yaml)) turns them into a score, a confidence
+and a tier (LOW / WATCH / REVIEW / HIGH) with readable reasons and recommended actions.
+Output: `data/scores/platform=<p>/scores.parquet`.
+
 ## Setup
 
 Requires Python 3.11+.
@@ -93,9 +105,11 @@ src/riskdetect/
   ingestion/        the front door: dedupe, store, publish; quarantine rejections
   storage/          where data lives (Parquet via DuckDB, no PyArrow); the only package that knows
   features/         behavior -> numbers, as of a moment in time, never seeing the future
+  rules/            readable YAML rules; never on account age alone; unknown never triggers
+  scoring/          rules -> score, confidence, tier, actions (with fairness guardrails)
+  explain/          readable reasons for every flag
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`realtime`, `rules`, `models`, `scoring`, `explain`, `labels`,
-`evaluation`, `serving`) are added milestone by milestone; see the design doc.
+Further packages (`realtime`, `models`, `labels`, `evaluation`, `serving`) are added milestone by milestone; see the design doc.

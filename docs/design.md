@@ -1,6 +1,6 @@
 # riskdetect — Design
 
-Status: agreed design, implementation in progress (Milestones 1-4 complete).
+Status: agreed design, implementation in progress (Milestones 1-5 complete).
 Key decisions are recorded as ADRs in [adr/](adr/).
 
 ## 1. Problem
@@ -160,8 +160,10 @@ WATCH has a reason.
 1. features → 2. scoring rules → 3. anomaly → 4. classifier → 5. combine →
 6. confidence → 7. guardrails → 8. tier and actions → 9. reasons → 10. save.
 
-v1 combination: weighted blend of available signals (missing ones re-weighted, not zero),
-floored by rule floors. Tier depends on score **and** confidence; HIGH requires high
+v1 combination (rules only): each fired rule removes a share of the remaining doubt,
+`score = 1 - prod(1 - strength)`. Weak-signal rules alone are capped below REVIEW, so
+escalating to a person needs at least one strong rule. Anomaly and model scores (later)
+join the same combination. Tier depends on score **and** confidence; HIGH requires high
 confidence. Scores decay when bad behavior stops.
 
 ## 8. Training and evaluation
@@ -198,8 +200,8 @@ on real data.
 | 2 | `synthetic/` simulator, config-driven `adapters/` | **Done** |
 | 3 | `storage/`, `ingestion/` | **Done** |
 | 4 | `features/` (batch) + leakage tests | **Done** |
-| 5 | `rules/`, basic `scoring/`, `explain/` | Next |
-| 6 | `realtime/` + realtime-equals-batch test | |
+| 5 | `rules/`, basic `scoring/`, `explain/` | **Done** |
+| 6 | `realtime/` + realtime-equals-batch test | Next |
 | 7 | `labels/`, `evaluation/` | |
 | 8 | Anomaly models | |
 | 9 | Classifier, calibration, combiner | |
