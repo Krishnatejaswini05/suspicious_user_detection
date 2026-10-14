@@ -8,8 +8,7 @@ The online store (latest values per actor, for realtime) comes with realtime/.
 from pathlib import Path
 from typing import Any
 
-import pyarrow as pa
-import pyarrow.parquet as pq
+from riskdetect.storage.parquet import read_all, write_parquet
 
 
 class ParquetFeatureStore:
@@ -21,13 +20,9 @@ class ParquetFeatureStore:
 
     def write(self, platform: str, rows: list[dict[str, Any]], name: str = "snapshots") -> Path:
         path = self.path(platform, name)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        pq.write_table(pa.Table.from_pylist(rows), path)
+        write_parquet(path, rows)
         return path
 
     def read(self, platform: str, name: str = "snapshots") -> list[dict[str, Any]]:
         path = self.path(platform, name)
-        if not path.exists():
-            return []
-        rows: list[dict[str, Any]] = pq.read_table(path).to_pylist()
-        return rows
+        return read_all(path) if path.exists() else []

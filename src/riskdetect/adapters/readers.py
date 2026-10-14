@@ -12,9 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import pyarrow.parquet as pq
-
 from riskdetect.adapters.config_loader import SourceFormat
+from riskdetect.storage.parquet import read_parquet as read_parquet_rows
 
 _EXTENSIONS: dict[str, tuple[str, ...]] = {
     "csv": (".csv",),
@@ -67,11 +66,9 @@ def read_jsonl(path: Path) -> Iterator[RawRecord]:
 
 
 def read_parquet(path: Path, batch_size: int = PARQUET_BATCH_SIZE) -> Iterator[RawRecord]:
-    row_number = 0
-    for batch in pq.ParquetFile(path).iter_batches(batch_size=batch_size):
-        for data in batch.to_pylist():
-            row_number += 1
-            yield RawRecord(f"{path.name}#{row_number}", data)
+    rows = read_parquet_rows(path, batch_rows=batch_size)
+    for row_number, data in enumerate(rows, start=1):
+        yield RawRecord(f"{path.name}#{row_number}", data)
 
 
 _READERS = {"csv": read_csv, "jsonl": read_jsonl, "parquet": read_parquet}

@@ -5,7 +5,6 @@ import pytest
 
 from riskdetect.schema import Event
 from riskdetect.storage import EVENT_SCHEMA, event_to_row, row_to_event
-from riskdetect.storage.serialization import events_to_table
 
 T0 = datetime(2026, 8, 1, 10, 0, tzinfo=UTC)
 
@@ -54,7 +53,7 @@ def test_round_trip(extra: dict[str, object]) -> None:
     assert row_to_event(event_to_row(event)) == event
 
 
-def test_table_matches_schema() -> None:
+def test_rows_match_schema() -> None:
     event = Event.model_validate(
         {
             "event_id": "synthetic_forum:x",
@@ -64,6 +63,4 @@ def test_table_matches_schema() -> None:
             "event_type": "ACCOUNT_CREATED",
         }
     )
-    table = events_to_table([event])
-    assert table.schema == EVENT_SCHEMA
-    assert table.num_rows == 1
+    assert list(event_to_row(event)) == list(EVENT_SCHEMA)

@@ -8,22 +8,18 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-import pyarrow as pa
-import pyarrow.parquet as pq
-
 from riskdetect.schema import Rejection, RejectionReason
 from riskdetect.storage.interfaces import QuarantinedRecord
+from riskdetect.storage.parquet import TIMESTAMPTZ, read_parquet, write_parquet
 
-_SCHEMA = pa.schema(
-    [
-        ("platform", pa.string()),
-        ("quarantined_at", pa.timestamp("us", tz="UTC")),
-        ("reason", pa.string()),
-        ("detail", pa.string()),
-        ("fields", pa.list_(pa.string())),
-        ("raw", pa.string()),  # JSON of the original record, minus private text
-    ]
-)
+_SCHEMA = {
+    "platform": "VARCHAR",
+    "quarantined_at": TIMESTAMPTZ,
+    "reason": "VARCHAR",
+    "detail": "VARCHAR",
+    "fields": "VARCHAR[]",
+    "raw": "VARCHAR",  # JSON of the original record, minus private text
+}
 
 
 class ParquetQuarantineStore:
@@ -44,11 +40,8 @@ class ParquetQuarantineStore:
             }
             for r in rejections
         ]
-        folder = self.directory / f"platform={platform}"
-        folder.mkdir(parents=True, exist_ok=True)
         name = f"part-{uuid.uuid4().hex[:16]}.parquet"  # short: Windows limits path length
-        pq.write_table(pa.Table.from_pylist(rows, schema=_SCHEMA), folder / name)
-        return len(rows)
+        return write_parquet(self.directory / f"platform={platform}" / name, rows, _SCHEMA)
 
     def read(self, platform: str | None = None) -> list[QuarantinedRecord]:
         base = self.directory / f"platform={platform}" if platform else self.directory
@@ -56,7 +49,7 @@ class ParquetQuarantineStore:
             return []
         records = []
         for file in sorted(base.glob("**/*.parquet")):
-            for row in pq.read_table(file).to_pylist():
+            for row in read_parquet(file):
                 rejection = Rejection(
                     reason=RejectionReason(row["reason"]),
                     detail=row["detail"],

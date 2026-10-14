@@ -1,11 +1,10 @@
 from pathlib import Path
 
-import pyarrow as pa
-import pyarrow.parquet as pq
 import pytest
 
 from riskdetect.adapters import read_records
 from riskdetect.adapters.readers import read_parquet, source_files
+from riskdetect.storage.parquet import write_parquet
 
 
 def test_csv_rows_with_positions_and_empty_as_none(tmp_path: Path) -> None:
@@ -29,7 +28,7 @@ def test_jsonl_skips_blank_lines_and_flags_bad_ones(tmp_path: Path) -> None:
 
 def test_parquet_rows_across_batches(tmp_path: Path) -> None:
     path = tmp_path / "events.parquet"
-    pq.write_table(pa.table({"user": ["a", "b", "c"], "n": [1, 2, 3]}), path)
+    write_parquet(path, [{"user": u, "n": n} for u, n in (("a", 1), ("b", 2), ("c", 3))])
 
     records = list(read_parquet(path, batch_size=2))
     assert [r.position for r in records] == [

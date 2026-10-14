@@ -2,9 +2,9 @@ import csv
 import json
 from pathlib import Path
 
-import pyarrow.parquet as pq
 import yaml
 
+from riskdetect.storage.parquet import describe, read_all
 from riskdetect.synthetic import SimulationResult, read_answer_key, write_simulation
 from riskdetect.synthetic.__main__ import main
 from riskdetect.synthetic.platforms import PROFILES
@@ -20,9 +20,9 @@ def test_writes_each_platform_in_its_own_format(
     assert len(lines) == len(tiny_result.rows["synthetic_forum"])
     assert json.loads(lines[0]) == tiny_result.rows["synthetic_forum"][0]
 
-    chat = pq.read_table(written["synthetic_chat"])
-    assert chat.num_rows == len(tiny_result.rows["synthetic_chat"])
-    assert tuple(chat.column_names) == PROFILES["synthetic_chat"].columns
+    chat = read_all(written["synthetic_chat"])
+    assert chat == tiny_result.rows["synthetic_chat"]
+    assert tuple(describe(written["synthetic_chat"])) == PROFILES["synthetic_chat"].columns
 
     with written["synthetic_market"].open(encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)

@@ -91,7 +91,7 @@ src/riskdetect/
   adapters/         raw platform data -> Events, using the platform YAML
   synthetic/        simulated users and platforms with a known answer key
   ingestion/        the front door: dedupe, store, publish; quarantine rejections
-  storage/          where data lives (Parquet + DuckDB); the only package that knows that
+  storage/          where data lives (Parquet via DuckDB, no PyArrow); the only package that knows
   features/         behavior -> numbers, as of a moment in time, never seeing the future
 tests/              unit, integration and invariant tests
 data/               local data (not in git)

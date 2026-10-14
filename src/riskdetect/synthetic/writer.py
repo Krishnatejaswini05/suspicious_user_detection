@@ -13,15 +13,24 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pyarrow as pa
-import pyarrow.parquet as pq
-
 from riskdetect.schema import Label
+from riskdetect.storage.parquet import TIMESTAMPTZ, read_all, write_parquet
 from riskdetect.synthetic.generator import AnswerKeyEntry, SimulationResult
 from riskdetect.synthetic.personas import PersonaName
 from riskdetect.synthetic.platforms import PROFILES, PlatformProfile
 
 ANSWER_KEY_PATH = Path("labels") / "answer_key.parquet"
+_ANSWER_KEY_SCHEMA = {
+    "actor_id": "VARCHAR",
+    "platform": "VARCHAR",
+    "persona": "VARCHAR",
+    "category": "VARCHAR",
+    "is_bad": "BOOLEAN",
+    "abuse_start": TIMESTAMPTZ,
+    "decided_at": TIMESTAMPTZ,
+    "source": "VARCHAR",
+    "confidence": "DOUBLE",
+}
 
 
 def write_simulation(result: SimulationResult, out_dir: Path) -> dict[str, Path]:
@@ -36,15 +45,14 @@ def write_simulation(result: SimulationResult, out_dir: Path) -> dict[str, Path]
         written[platform] = path
 
     key_path = out_dir / ANSWER_KEY_PATH
-    key_path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(pa.Table.from_pylist([_key_row(e) for e in result.answer_key]), key_path)
+    write_parquet(key_path, [_key_row(e) for e in result.answer_key], _ANSWER_KEY_SCHEMA)
     written["answer_key"] = key_path
     return written
 
 
 def read_answer_key(path: Path) -> list[AnswerKeyEntry]:
     entries = []
-    for row in pq.read_table(path).to_pylist():
+    for row in read_all(path):
         persona = PersonaName(row.pop("persona"))
         row.pop("is_bad")
         entries.append(AnswerKeyEntry(Label.model_validate(row), persona))
@@ -80,8 +88,8 @@ def _write_jsonl(profile: PlatformProfile, rows: list[dict[str, Any]], path: Pat
 
 
 def _write_parquet(profile: PlatformProfile, rows: list[dict[str, Any]], path: Path) -> None:
-    columns = {name: [row[name] for row in rows] for name in profile.columns}
-    pq.write_table(pa.table(columns), path)
+    ordered = [{name: row[name] for name in profile.columns} for row in rows]
+    write_parquet(path, ordered)
 
 
 _WRITERS = {"csv": _write_csv, "jsonl": _write_jsonl, "parquet": _write_parquet}

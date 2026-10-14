@@ -8,42 +8,38 @@ so later feature queries can read plain columns such as ``text_hash`` or
 import json
 from typing import Any
 
-import pyarrow as pa
-
 from riskdetect.schema import Event
+from riskdetect.storage.parquet import TIMESTAMPTZ
 
-_TS = pa.timestamp("us", tz="UTC")
-
-EVENT_SCHEMA = pa.schema(
-    [
-        ("event_id", pa.string()),
-        ("schema_version", pa.int16()),
-        ("platform", pa.string()),
-        ("actor_id", pa.string()),
-        ("event_type", pa.string()),
-        ("occurred_at", _TS),
-        ("ingested_at", _TS),
-        ("space_id", pa.string()),
-        ("target_type", pa.string()),
-        ("target_id", pa.string()),
-        ("target_owner_id", pa.string()),
-        ("content_kind", pa.string()),
-        ("visibility", pa.string()),
-        ("text_hash", pa.string()),
-        ("simhash", pa.uint64()),
-        ("content_length", pa.int32()),
-        ("language", pa.string()),
-        ("url_domains", pa.list_(pa.string())),
-        ("mention_count", pa.int32()),
-        ("interaction_kind", pa.string()),
-        ("interaction_value", pa.float64()),
-        ("moderation_action", pa.string()),
-        ("moderation_source", pa.string()),
-        ("moderation_reason", pa.string()),
-        ("attributes", pa.string()),  # JSON text; platform extras are never queried by core logic
-    ]
-)
-EVENT_COLUMNS = tuple(EVENT_SCHEMA.names)
+# Column name -> DuckDB type, in file order.
+EVENT_SCHEMA: dict[str, str] = {
+    "event_id": "VARCHAR",
+    "schema_version": "SMALLINT",
+    "platform": "VARCHAR",
+    "actor_id": "VARCHAR",
+    "event_type": "VARCHAR",
+    "occurred_at": TIMESTAMPTZ,
+    "ingested_at": TIMESTAMPTZ,
+    "space_id": "VARCHAR",
+    "target_type": "VARCHAR",
+    "target_id": "VARCHAR",
+    "target_owner_id": "VARCHAR",
+    "content_kind": "VARCHAR",
+    "visibility": "VARCHAR",
+    "text_hash": "VARCHAR",
+    "simhash": "UBIGINT",
+    "content_length": "INTEGER",
+    "language": "VARCHAR",
+    "url_domains": "VARCHAR[]",
+    "mention_count": "INTEGER",
+    "interaction_kind": "VARCHAR",
+    "interaction_value": "DOUBLE",
+    "moderation_action": "VARCHAR",
+    "moderation_source": "VARCHAR",
+    "moderation_reason": "VARCHAR",
+    "attributes": "VARCHAR",  # JSON text; platform extras are never queried by core logic
+}
+EVENT_COLUMNS = tuple(EVENT_SCHEMA)
 
 
 def event_to_row(event: Event) -> dict[str, Any]:
@@ -76,10 +72,6 @@ def event_to_row(event: Event) -> dict[str, Any]:
         "moderation_reason": moderation.reason_category if moderation else None,
         "attributes": json.dumps(event.attributes, sort_keys=True) if event.attributes else None,
     }
-
-
-def events_to_table(events: list[Event]) -> pa.Table:
-    return pa.Table.from_pylist([event_to_row(e) for e in events], schema=EVENT_SCHEMA)
 
 
 def row_to_event(row: dict[str, Any]) -> Event:
