@@ -37,6 +37,7 @@ def compute_snapshots(
     *,
     available_fields: Iterable[str] | None = None,
     active_within: timedelta | None = WEEK,
+    blocked_domains: frozenset[str] = frozenset(),
 ) -> list[FeatureRow]:
     """One row per (snapshot, actor active within ``active_within`` before it).
 
@@ -46,7 +47,7 @@ def compute_snapshots(
     times = sorted(set(snapshot_times))
     if not times:
         return []
-    engine = FeatureEngine(platform, supported_features(available_fields))
+    engine = FeatureEngine(platform, supported_features(available_fields), blocked_domains)
     names = feature_names()
     rows: list[FeatureRow] = []
     pending = 0

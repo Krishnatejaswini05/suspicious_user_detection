@@ -28,7 +28,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 3: storage and ingestion (`riskdetect.storage`, `riskdetect.ingestion`). Done.
 - Milestone 4: behavioral features (`riskdetect.features`). Done.
 - Milestone 5: rules, scoring and explanations (`rules`, `scoring`, `explain`). Done.
-- Milestone 6: realtime scoring. Next.
+- Milestone 6: realtime scoring (`riskdetect.realtime`). Done.
+- Milestone 7: labels and evaluation. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -74,6 +75,19 @@ Rules ([configs/rules.yaml](configs/rules.yaml)) fire on features; scoring
 and a tier (LOW / WATCH / REVIEW / HIGH) with readable reasons and recommended actions.
 Output: `data/scores/platform=<p>/scores.parquet`.
 
+## Live scoring
+
+```bash
+python -m riskdetect.realtime                   # replay stored events through live scoring
+```
+
+Each event updates its user's running summary at once (the same code as the nightly
+batch, so both agree). Users are rescored every 10 events or 5 minutes of activity, and
+immediately for alarming events such as a link to a site in
+[configs/lists/blocked_domains.txt](configs/lists/blocked_domains.txt). Every live score is
+appended to `data/scores/history/`. In a deployment, `RealtimeProcessor.on_events` subscribes
+to the ingestion publisher.
+
 ## Setup
 
 Requires Python 3.11+.
@@ -108,8 +122,9 @@ src/riskdetect/
   rules/            readable YAML rules; never on account age alone; unknown never triggers
   scoring/          rules -> score, confidence, tier, actions (with fairness guardrails)
   explain/          readable reasons for every flag
+  realtime/         live rescoring the moment users act; replay for measuring speed
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`realtime`, `models`, `labels`, `evaluation`, `serving`) are added milestone by milestone; see the design doc.
+Further packages (`models`, `labels`, `evaluation`, `serving`) are added milestone by milestone; see the design doc.

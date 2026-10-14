@@ -204,6 +204,12 @@ FEATURES: tuple[Feature, ...] = (
         requires=frozenset({"content", "urls"}),
     ),
     Feature(
+        "blocked_domain_posts_7d", 1, "content",
+        "Posts in the last 7 days linking to a known scam or malware site (from the blocklist).",
+        lambda s, t: float(s.with_blocked_domain.count(WEEK, t)),
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
         "distinct_domains_7d", 1, "content", "Different websites linked in the last 7 days.",
         lambda s, t: float(len(s.domains.totals(WEEK, t))),
         requires=frozenset({"content", "urls"}),

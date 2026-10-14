@@ -14,15 +14,21 @@ from riskdetect.schema import Event
 
 
 class FeatureEngine:
-    def __init__(self, platform: str, features: Iterable[Feature] | None = None) -> None:
+    def __init__(
+        self,
+        platform: str,
+        features: Iterable[Feature] | None = None,
+        blocked_domains: frozenset[str] = frozenset(),
+    ) -> None:
         self.platform = platform
         self.features = tuple(features) if features is not None else all_features()
+        self.blocked_domains = blocked_domains
         self.states: dict[str, ActorState] = {}
 
     def state(self, actor_id: str) -> ActorState:
         state = self.states.get(actor_id)
         if state is None:
-            state = self.states[actor_id] = ActorState(actor_id)
+            state = self.states[actor_id] = ActorState(actor_id, self.blocked_domains)
         return state
 
     def apply(self, event: Event) -> None:

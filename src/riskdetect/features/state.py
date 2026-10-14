@@ -38,6 +38,8 @@ _RECENT_GAPS = 50
 @dataclass
 class ActorState:
     actor_id: str
+    # Known-bad domains (shared, read-only); posts linking to them are counted.
+    blocked_domains: frozenset[str] = frozenset()
     created_at: datetime | None = None
     first_seen: datetime | None = None
     first_active: datetime | None = None  # first event other than signup
@@ -50,6 +52,7 @@ class ActorState:
     duplicates: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     with_link: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     with_shortener: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
+    with_blocked_domain: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     interactions: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     reports_received: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     replies_received: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
@@ -107,6 +110,8 @@ class ActorState:
             self.with_link.add(moment)
             if any(domain in URL_SHORTENERS for domain in content.url_domains):
                 self.with_shortener.add(moment)
+            if self.blocked_domains.intersection(content.url_domains):
+                self.with_blocked_domain.add(moment)
             for domain in content.url_domains:
                 self.domains.add(moment, domain)
 
@@ -145,6 +150,7 @@ class ActorState:
             self.duplicates,
             self.with_link,
             self.with_shortener,
+            self.with_blocked_domain,
             self.interactions,
             self.reports_received,
             self.replies_received,

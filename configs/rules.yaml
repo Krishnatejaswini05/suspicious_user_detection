@@ -64,13 +64,25 @@ rules:
     when:
       all:
         - {feature: account_age_days, op: ">=", value: 30}
-        - {feature: rate_vs_baseline, op: ">=", value: 4}
+        - {feature: rate_vs_baseline, op: ">=", value: 5}
+        # Ratios need enough posts behind them: one linked post is "100% links".
+        - {feature: posts_24h, op: ">=", value: 5}
         - any:
             - {feature: duplicate_ratio_24h, op: ">=", value: 0.5}
-            - {feature: link_ratio_7d, op: ">=", value: 0.5}
+            - {feature: link_ratio_7d, op: ">=", value: 0.6}
     reason: >-
       Activity is {rate_vs_baseline:.1f}x this {account_age_days:.0f}-day-old account's usual level,
       with repeated posts or links
+
+  - id: R008_known_scam_site
+    description: Linking to a site on the blocklist of known scam or malware sites.
+    category: scam
+    score_floor: 0.9
+    severity: critical  # may reach HIGH even with little history: the evidence is direct
+    when:
+      all:
+        - {feature: blocked_domain_posts_7d, op: ">=", value: 1}
+    reason: "Linked to a known scam or malware website ({blocked_domain_posts_7d:.0f} posts this week)"
 
   - id: R005_reported_and_ignored
     description: Content that others report a lot and rarely reply to.

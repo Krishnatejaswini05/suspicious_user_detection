@@ -1,0 +1,7 @@
+# Known scam or malware websites. Posting a link to any of these is a critical signal.
+# One domain per line; "www." and letter case are ignored; lines starting with # are comments.
+# Keep this list to confirmed-bad sites: ordinary sites, and URL shorteners such as
+# bit.ly, are handled by other, weaker signals instead.
+
+coin-profit.xyz
+prize-claim.site
