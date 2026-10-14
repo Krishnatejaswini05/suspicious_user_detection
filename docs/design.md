@@ -1,6 +1,6 @@
 # riskdetect — Design
 
-Status: agreed design, implementation in progress (Milestones 1-3 complete).
+Status: agreed design, implementation in progress (Milestones 1-4 complete).
 Key decisions are recorded as ADRs in [adr/](adr/).
 
 ## 1. Problem
@@ -116,8 +116,10 @@ quarantine. A controlled `delete_actor` supports privacy requests.
 
 ## 5. Features
 
-Computed per actor over windows 1h / 24h / 7d / 30d / lifetime. Each feature is defined
-once (`update(state, event)` + `compute(state)`) and used by both realtime and batch.
+Computed per actor over windows 1h / 24h / 7d / 30d / lifetime. Each actor has one running
+summary (`features/state.py`) updated event by event; each feature is a formula over that
+summary as of a moment. Batch replays stored events through it; realtime will feed live
+events through the same code, which keeps the two in agreement.
 
 | Family | v1 examples |
 |---|---|
@@ -195,8 +197,8 @@ on real data.
 | 1 | Project setup, design docs, `schema/` | **Done** |
 | 2 | `synthetic/` simulator, config-driven `adapters/` | **Done** |
 | 3 | `storage/`, `ingestion/` | **Done** |
-| 4 | `features/` (batch) + leakage tests | Next |
-| 5 | `rules/`, basic `scoring/`, `explain/` | |
+| 4 | `features/` (batch) + leakage tests | **Done** |
+| 5 | `rules/`, basic `scoring/`, `explain/` | Next |
 | 6 | `realtime/` + realtime-equals-batch test | |
 | 7 | `labels/`, `evaluation/` | |
 | 8 | Anomaly models | |

@@ -1,6 +1,7 @@
 """Where data lives. The only package that knows about Parquet and DuckDB."""
 
 from riskdetect.storage.event_store import ParquetEventStore
+from riskdetect.storage.feature_store import ParquetFeatureStore
 from riskdetect.storage.interfaces import EventStore, QuarantinedRecord, QuarantineStore
 from riskdetect.storage.paths import DEFAULT_DATA_ROOT, DataPaths
 from riskdetect.storage.quarantine_store import ParquetQuarantineStore
@@ -12,6 +13,7 @@ __all__ = [
     "DataPaths",
     "EventStore",
     "ParquetEventStore",
+    "ParquetFeatureStore",
     "ParquetQuarantineStore",
     "QuarantineStore",
     "QuarantinedRecord",

@@ -31,6 +31,7 @@ class ParquetEventStore:
         self.directory = directory
         self._con = duckdb.connect()
         self._con.execute("SET TimeZone = 'UTC'")  # timestamps come back in UTC
+        self._con.execute("SET enable_progress_bar = false")
 
     # -- writing -------------------------------------------------------------
 

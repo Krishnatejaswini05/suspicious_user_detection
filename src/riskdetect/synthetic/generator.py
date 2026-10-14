@@ -29,6 +29,7 @@ from riskdetect.synthetic.timing import bot_day, human_day
 
 _RECENT_CONTENT = 300  # replies and votes pick from this many most recent items
 _REPORT_SPAM_BIAS = 0.7  # reporters notice spam more often than ordinary content
+_HUMANS_SKIP_SPAM = 0.9  # people rarely reply to or like spam
 _PRE_ABUSE_LINK_RATE = 0.08
 
 
@@ -73,6 +74,9 @@ class _User:
     link: str | None
     bursts_per_day: float
     interval_seconds: float
+
+
+_Item = tuple[str, str, str | None, bool]  # (content_id, owner, space, is_spam)
 
 
 @dataclass(frozen=True)
@@ -249,8 +253,8 @@ def _bot_action(profile: PlatformProfile, user: _User, moment: datetime) -> _Int
 
 def _resolve(intents: list[_Intent], rng: random.Random, noise_rate: float) -> list[ResolvedAction]:
     """Point replies, votes, follows and reports at things that exist at that moment."""
-    content: list[tuple[str, str, str | None]] = []  # (content_id, owner, space)
-    spam_content: list[tuple[str, str, str | None]] = []
+    content: list[_Item] = []
+    spam_content: list[_Item] = []
     posters: list[str] = []
     poster_set: set[str] = set()
     out: list[ResolvedAction] = []
@@ -266,13 +270,14 @@ def _resolve(intents: list[_Intent], rng: random.Random, noise_rate: float) -> l
             source = content
             if action is A.REPORT and spam_content and rng.random() < _REPORT_SPAM_BIAS:
                 source = spam_content
-            picked = _pick_content(rng, source, intent.actor_id)
+            avoid_spam = not intent.is_spam and action is not A.REPORT
+            picked = _pick_content(rng, source, intent.actor_id, avoid_spam=avoid_spam)
             if picked is None:
                 if action is not A.REPLY:
                     continue  # nothing to vote on or report yet
                 action = A.POST  # a reply with nothing to reply to becomes a new post
             else:
-                target_id, target_owner, target_space = picked
+                target_id, target_owner, target_space, _ = picked
                 if action is A.REPLY:
                     space = target_space
         elif action is A.FOLLOW:
@@ -284,7 +289,7 @@ def _resolve(intents: list[_Intent], rng: random.Random, noise_rate: float) -> l
         content_id: str | None = None
         if action in CREATES_CONTENT:
             content_id = f"{'t' if action is A.POST else 'c'}{seq}"
-            item = (content_id, intent.actor_id, space)
+            item = (content_id, intent.actor_id, space, intent.is_spam)
             content.append(item)
             if intent.is_spam:
                 spam_content.append(item)
@@ -312,15 +317,18 @@ def _resolve(intents: list[_Intent], rng: random.Random, noise_rate: float) -> l
 
 
 def _pick_content(
-    rng: random.Random, source: list[tuple[str, str, str | None]], actor_id: str
-) -> tuple[str, str, str | None] | None:
+    rng: random.Random, source: list[_Item], actor_id: str, *, avoid_spam: bool = False
+) -> _Item | None:
     recent = source[-_RECENT_CONTENT:]
     for _ in range(5):
         if not recent:
             return None
         item = rng.choice(recent)
-        if item[1] != actor_id:
-            return item
+        if item[1] == actor_id:
+            continue
+        if avoid_spam and item[3] and rng.random() < _HUMANS_SKIP_SPAM:
+            continue
+        return item
     return None
 
 

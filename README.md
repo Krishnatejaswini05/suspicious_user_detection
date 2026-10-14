@@ -26,7 +26,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 2a: config-driven adapters (`riskdetect.adapters`). Done.
 - Milestone 2b: synthetic data simulator (`riskdetect.synthetic`). Done.
 - Milestone 3: storage and ingestion (`riskdetect.storage`, `riskdetect.ingestion`). Done.
-- Milestone 4: behavioral features. Next.
+- Milestone 4: behavioral features (`riskdetect.features`). Done.
+- Milestone 5: rules, basic scoring and explanations. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -50,6 +51,16 @@ python -m riskdetect.ingestion --platform synthetic_forum
 Raw files are translated by the adapters, deduplicated, and stored as Parquet under
 `data/events/platform=<p>/date=<YYYY-MM-DD>/`. Rejected rows go to `data/quarantine/`.
 Loading the same files again stores nothing new.
+
+## Compute behavioral features
+
+```bash
+python -m riskdetect.features                   # daily snapshots for every platform
+```
+
+Each snapshot holds every active user's features as of that moment, computed only
+from earlier events. Count features also get a `<name>_pct` column: their percentile
+within the platform. Output: `data/features/platform=<p>/snapshots.parquet`.
 
 ## Setup
 
@@ -81,10 +92,10 @@ src/riskdetect/
   synthetic/        simulated users and platforms with a known answer key
   ingestion/        the front door: dedupe, store, publish; quarantine rejections
   storage/          where data lives (Parquet + DuckDB); the only package that knows that
+  features/         behavior -> numbers, as of a moment in time, never seeing the future
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`features`,
-`realtime`, `rules`, `models`, `scoring`, `explain`, `labels`, `evaluation`,
-`serving`) are added milestone by milestone; see the design doc.
+Further packages (`realtime`, `rules`, `models`, `scoring`, `explain`, `labels`,
+`evaluation`, `serving`) are added milestone by milestone; see the design doc.
