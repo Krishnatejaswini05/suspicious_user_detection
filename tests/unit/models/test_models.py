@@ -85,7 +85,9 @@ class TestPopulationAnomaly:
 
     def test_missing_values_never_look_unusual(self) -> None:
         model = self.model()
-        assert model.signals(snapshot(**dict.fromkeys(FEATURES))) == []
+        unknown = snapshot()
+        unknown.update(dict.fromkeys(FEATURES))  # every value unknown
+        assert model.signals(unknown) == []
 
     def test_unknown_platform_gives_nothing(self) -> None:
         assert self.model().signals(snapshot(platform="elsewhere")) == []

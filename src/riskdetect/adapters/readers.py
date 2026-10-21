@@ -7,7 +7,7 @@ derived event IDs.
 
 import csv
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -71,7 +71,11 @@ def read_parquet(path: Path, batch_size: int = PARQUET_BATCH_SIZE) -> Iterator[R
         yield RawRecord(f"{path.name}#{row_number}", data)
 
 
-_READERS = {"csv": read_csv, "jsonl": read_jsonl, "parquet": read_parquet}
+_READERS: dict[str, Callable[[Path], Iterator[RawRecord]]] = {
+    "csv": read_csv,
+    "jsonl": read_jsonl,
+    "parquet": read_parquet,
+}
 
 
 def read_records(path: Path, fmt: SourceFormat) -> Iterator[RawRecord]:

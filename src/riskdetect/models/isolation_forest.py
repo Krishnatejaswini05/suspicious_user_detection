@@ -55,7 +55,7 @@ class IsolationForest:
         if not self.trees:
             raise ValueError("fit the forest before scoring")
         mean_path = sum(_path(tree, row, 0) for tree in self.trees) / len(self.trees)
-        return 2.0 ** (-mean_path / average_path(self._sample_used))
+        return math.pow(2.0, -mean_path / average_path(self._sample_used))
 
     def to_dict(self) -> dict[str, Any]:
         return {
