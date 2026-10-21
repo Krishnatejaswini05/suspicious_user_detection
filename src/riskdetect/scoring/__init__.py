@@ -6,16 +6,20 @@ from riskdetect.scoring.config import (
     ScoringConfigError,
     load_scoring_config,
 )
+from riskdetect.scoring.evidence import Evidence, Signal, SignalSource
 from riskdetect.scoring.result import Confidence, RiskResult, Tier
 from riskdetect.scoring.scorer import Scorer, combine, confidence_from, tier_from
 
 __all__ = [
     "DEFAULT_SCORING_PATH",
     "Confidence",
+    "Evidence",
     "RiskResult",
     "Scorer",
     "ScoringConfig",
     "ScoringConfigError",
+    "Signal",
+    "SignalSource",
     "Tier",
     "combine",
     "confidence_from",

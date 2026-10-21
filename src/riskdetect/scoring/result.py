@@ -37,6 +37,7 @@ class RiskResult:
     actions: tuple[str, ...]  # recommendations only; the platform decides
     rules_version: int
     scoring_version: int
+    signals: tuple[str, ...] = ()  # model signals that contributed (e.g. anomaly detectors)
 
     def to_row(self) -> dict[str, Any]:
         """A flat row for the score store."""
@@ -55,4 +56,5 @@ class RiskResult:
             "actions": list(self.actions),
             "rules_version": self.rules_version,
             "scoring_version": self.scoring_version,
+            "signals": list(self.signals),
         }

@@ -1,6 +1,6 @@
 """Run the whole exam: split, score, mark, compare, check gates."""
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 
 from riskdetect.evaluation.baselines import baselines as make_baselines
@@ -12,10 +12,12 @@ from riskdetect.evaluation.speed import detections, summarize
 from riskdetect.evaluation.splits import last_days_cutoff, refit_percentiles, time_split
 from riskdetect.features import FeatureRow
 from riskdetect.labels import LabeledRow, TruthIndex, label_rows
-from riskdetect.scoring import Scorer, Tier
+from riskdetect.scoring import Scorer, SignalSource, Tier
 from riskdetect.storage import EventStore
 
 _FLAGGED = frozenset({Tier.REVIEW, Tier.HIGH})
+
+ModelFitter = Callable[[dict[str, list[FeatureRow]]], Sequence[SignalSource]]
 
 
 def evaluate(
@@ -26,10 +28,13 @@ def evaluate(
     *,
     history: Iterable[Mapping[str, Any]] = (),
     store: EventStore | None = None,
+    fit_models: ModelFitter | None = None,
 ) -> EvaluationReport:
     """Mark the detector on the last ``config.test_days`` days of each platform's snapshots.
 
-    ``history`` (live score history) and ``store`` enable the speed section.
+    ``fit_models`` receives each platform's *training* snapshots (percentiles refitted on
+    those same rows) and returns the models to score the test period with, so models
+    never learn from the test period. ``history`` and ``store`` enable the speed section.
     """
     all_rows = [row for rows in snapshots.values() for row in rows]
     if not all_rows:
@@ -37,11 +42,15 @@ def evaluate(
     cutoff = last_days_cutoff(all_rows, config.test_days)
 
     labeled: list[LabeledRow] = []
+    training: dict[str, list[FeatureRow]] = {}
     for platform, rows in sorted(snapshots.items()):
         train, test = time_split(rows, cutoff)
         if not test:
             continue
+        training[platform] = refit_percentiles(platform, train, train)
         labeled += label_rows(refit_percentiles(platform, train, test), truths)
+    if fit_models is not None:
+        scorer = scorer.with_models(fit_models(training))
 
     scored = []
     for item in labeled:

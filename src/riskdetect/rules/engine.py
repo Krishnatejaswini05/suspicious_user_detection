@@ -17,6 +17,27 @@ class RuleHit:
     def active(self) -> bool:
         return self.rule.mode == "active"
 
+    # The same shape as a model signal, so rule hits and signals combine identically.
+    @property
+    def code(self) -> str:
+        return self.rule.id
+
+    @property
+    def category(self) -> str:
+        return str(self.rule.category)
+
+    @property
+    def strength(self) -> float:
+        return self.rule.strength
+
+    @property
+    def strong(self) -> bool:
+        return self.rule.score_floor is not None
+
+    @property
+    def critical(self) -> bool:
+        return self.rule.severity == "critical"
+
 
 def evaluate(rules: RuleSet, values: Mapping[str, Any]) -> list[RuleHit]:
     """Every rule (active or shadow) whose condition holds for these feature values."""

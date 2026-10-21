@@ -30,7 +30,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 5: rules, scoring and explanations (`rules`, `scoring`, `explain`). Done.
 - Milestone 6: realtime scoring (`riskdetect.realtime`). Done.
 - Milestone 7: labels and evaluation (`riskdetect.labels`, `riskdetect.evaluation`). Done.
-- Milestone 8: anomaly detection. Next.
+- Milestone 8: anomaly detection (`riskdetect.models`). Done.
+- Milestone 9: trained classifier and calibration. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -90,6 +91,17 @@ immediately for alarming events such as a link to a site in
 appended to `data/scores/history/`. In a deployment, `RealtimeProcessor.on_events` subscribes
 to the ingestion publisher.
 
+## Anomaly detection
+
+```bash
+python -m riskdetect.models                     # fit the population model -> data/models/
+```
+
+Two detectors add evidence alongside the rules: a **self-baseline** check (an established
+account suddenly behaving very differently from its own past; needs no training) and a
+**population** Isolation Forest per platform (unusual compared with others; a weak signal
+that alone can only reach WATCH). Scoring and live scoring load them automatically.
+
 ## Evaluate (the report card)
 
 ```bash
@@ -138,8 +150,9 @@ src/riskdetect/
   realtime/         live rescoring the moment users act; replay for measuring speed
   labels/           the right answers per snapshot; never read by the detector
   evaluation/       the report card: metrics, fairness by group, baselines, gates
+  models/           anomaly detectors: own-past change, Isolation Forest (plain Python)
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`models`, `serving`) are added milestone by milestone; see the design doc.
+Further packages (`serving`) are added milestone by milestone; see the design doc.

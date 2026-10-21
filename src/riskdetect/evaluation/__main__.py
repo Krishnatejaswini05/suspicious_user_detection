@@ -14,9 +14,11 @@ from pathlib import Path
 from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms
 from riskdetect.evaluation.gates import DEFAULT_EVALUATION_PATH, load_evaluation_config
 from riskdetect.evaluation.run import evaluate
+from riskdetect.features import FeatureRow
 from riskdetect.labels import truths_from_answer_key
+from riskdetect.models import PopulationAnomaly, SelfBaselineAnomaly
 from riskdetect.rules import DEFAULT_RULES_PATH, load_rules
-from riskdetect.scoring import DEFAULT_SCORING_PATH, Scorer, load_scoring_config
+from riskdetect.scoring import DEFAULT_SCORING_PATH, Scorer, SignalSource, load_scoring_config
 from riskdetect.storage import (
     DEFAULT_DATA_ROOT,
     DataPaths,
@@ -36,6 +38,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--rules", type=Path, default=DEFAULT_RULES_PATH)
     parser.add_argument("--scoring", type=Path, default=DEFAULT_SCORING_PATH)
     parser.add_argument("--evaluation", type=Path, default=DEFAULT_EVALUATION_PATH)
+    parser.add_argument(
+        "--rules-only", action="store_true", help="evaluate without the anomaly detectors"
+    )
     args = parser.parse_args(argv)
 
     paths = DataPaths(args.data)
@@ -45,13 +50,25 @@ def main(argv: list[str] | None = None) -> int:
     snapshots = {p: rows for p in platforms if (rows := features.read(p))}
     history = [row for p in platforms for row in scores.read_history(p)]
 
+    config = load_evaluation_config(args.evaluation)
+
+    def fit_models(training: dict[str, list[FeatureRow]]) -> list[SignalSource]:
+        return [SelfBaselineAnomaly(), PopulationAnomaly.fit(training, seed=config.seed)]
+
     report = evaluate(
         snapshots,
         truths_from_answer_key(paths.root / ANSWER_KEY_PATH),
         Scorer(load_rules(args.rules), load_scoring_config(args.scoring)),
-        load_evaluation_config(args.evaluation),
+        config,
         history=history,
         store=ParquetEventStore(paths.events) if history else None,
+        fit_models=None if args.rules_only else fit_models,
+    )
+    report.notes.append(
+        "Detectors: rules only."
+        if args.rules_only
+        else "Detectors: rules + self-baseline + population anomaly (fitted on the training "
+        "period only)."
     )
     report.notes.append(
         "Synthetic data: the rules were written knowing how the simulator behaves, so these "

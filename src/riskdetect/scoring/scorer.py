@@ -1,11 +1,10 @@
 """Turn one user's features into a score, confidence, tier, reasons and actions.
 
 Steps:
-1. Run the rules (rules/).
-2. Combine: each fired rule removes a share of the remaining doubt,
+1. Run the rules (rules/) and ask each model (e.g. anomaly detectors) for signals.
+2. Combine: each piece of evidence removes a share of the remaining doubt,
    score = 1 - product(1 - strength). One strong rule at 0.75 gives 0.75; two
-   independent strong rules give more. Weak signals alone are capped below REVIEW.
-   Later milestones blend in anomaly and model scores here.
+   independent strong signals give more. Weak evidence alone is capped below REVIEW.
 3. Confidence from how much we have seen of the user.
 4. Guardrails: allowlist cap; HIGH needs high confidence (unless a critical rule
    fired); nothing above WATCH without at least one reason.
@@ -16,30 +15,42 @@ from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any
 
-from riskdetect.explain import top_reasons
-from riskdetect.rules import Rule, RuleHit, RuleSet, evaluate
+from riskdetect.explain import MAX_REASONS, Reason, top_reasons
+from riskdetect.rules import RuleSet, evaluate
 from riskdetect.scoring.config import ScoringConfig
+from riskdetect.scoring.evidence import Evidence, Signal, SignalSource
 from riskdetect.scoring.result import Confidence, RiskResult, Tier
 
 
-def combine(hits: Iterable[RuleHit], max_weight_score: float) -> tuple[float, dict[str, float]]:
-    """Overall score and a score per abuse category, from the active rules that fired."""
-    active = [hit.rule for hit in hits if hit.active]
+def combine(items: Iterable[Evidence], max_weight_score: float) -> tuple[float, dict[str, float]]:
+    """Overall score and a score per category, from active rule hits and model signals."""
+    active = [item for item in items if item.active]
 
-    def merged(rules: list[Rule]) -> float:
+    def merged(group: list[Evidence]) -> float:
         doubt = 1.0
-        for rule in rules:
-            doubt *= 1.0 - rule.strength
+        for item in group:
+            doubt *= 1.0 - item.strength
         score = 1.0 - doubt
-        if not any(rule.score_floor is not None for rule in rules):
-            score = min(score, max_weight_score)  # weak signals alone stay below REVIEW
+        if not any(item.strong for item in group):
+            score = min(score, max_weight_score)  # weak evidence alone stays below REVIEW
         return round(score, 4)
 
-    by_category: dict[str, list[Rule]] = {}
-    for rule in active:
-        by_category.setdefault(str(rule.category), []).append(rule)
-    categories = {category: merged(rules) for category, rules in sorted(by_category.items())}
+    by_category: dict[str, list[Evidence]] = {}
+    for item in active:
+        by_category.setdefault(item.category, []).append(item)
+    categories = {category: merged(group) for category, group in sorted(by_category.items())}
     return (merged(active) if active else 0.0), categories
+
+
+def _signal_reason(signal: Signal) -> Reason:
+    return Reason(
+        code=signal.code,
+        source=signal.source,
+        category=signal.category,
+        text=signal.reason,
+        strength=signal.strength,
+        evidence=dict(signal.evidence),
+    )
 
 
 def confidence_from(events_seen: float | None, config: ScoringConfig) -> Confidence:
@@ -68,25 +79,35 @@ class Scorer:
         rules: RuleSet,
         config: ScoringConfig,
         allowlist: Iterable[tuple[str, str]] = (),
+        models: Iterable[SignalSource] = (),
     ) -> None:
-        """``allowlist`` holds (platform, actor_id) pairs, e.g. staff or official bots."""
+        """``allowlist`` holds (platform, actor_id) pairs, e.g. staff or official bots.
+        ``models`` are extra evidence sources, such as the anomaly detectors."""
         self.rules = rules
         self.config = config
         self.allowlist = frozenset(allowlist)
+        self.models = tuple(models)
+
+    def with_models(self, models: Iterable[SignalSource]) -> "Scorer":
+        """The same scorer with a different set of models (e.g. fitted on a training period)."""
+        return Scorer(self.rules, self.config, self.allowlist, models)
 
     def score(self, row: Mapping[str, Any]) -> RiskResult:
         """Score one feature row (platform, actor_id, as_of plus feature values)."""
         platform, actor_id, as_of = row["platform"], row["actor_id"], row["as_of"]
         hits = evaluate(self.rules, row)
-        score, categories = combine(hits, self.config.max_weight_score)
+        signals = [signal for model in self.models for signal in model.signals(row)]
+        score, categories = combine([*hits, *signals], self.config.max_weight_score)
 
         if (platform, actor_id) in self.allowlist:
             score = min(score, self.config.allowlist_cap)
             categories = {c: min(v, self.config.allowlist_cap) for c, v in categories.items()}
 
-        reasons = tuple(top_reasons(hits))
+        candidates = top_reasons(hits) + [_signal_reason(s) for s in signals]
+        candidates.sort(key=lambda r: (-r.strength, r.code))
+        reasons = tuple(candidates[:MAX_REASONS])
         confidence = confidence_from(row.get("events_seen"), self.config)
-        critical = any(h.active and h.rule.severity == "critical" for h in hits)
+        critical = any(h.active and h.critical for h in hits)
         tier = tier_from(score, confidence, critical, self.config)
         if tier in (Tier.REVIEW, Tier.HIGH) and not reasons:
             tier = Tier.WATCH  # never escalate without something a person can check
@@ -105,6 +126,7 @@ class Scorer:
             actions=self.config.actions[tier],
             rules_version=self.rules.version,
             scoring_version=self.config.version,
+            signals=tuple(s.code for s in signals),
         )
 
     def score_all(self, rows: Iterable[Mapping[str, Any]]) -> list[RiskResult]:

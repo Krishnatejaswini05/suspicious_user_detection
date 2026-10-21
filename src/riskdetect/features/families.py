@@ -11,12 +11,14 @@ from statistics import mean, median, pstdev
 
 from riskdetect.features.definition import Feature, FeatureValue
 from riskdetect.features.state import ActorState
-from riskdetect.features.windows import DAY, HOUR, MONTH, WEEK, day_index
+from riskdetect.features.windows import DAY, HOUR, MONTH, WEEK, TimeSeriesCounter, day_index
 
 _MIN_GAPS = 5  # timing measures need a handful of gaps to mean anything
 _MIN_BASELINE_DAYS = 3
 _MIN_LINKS_FOR_SHARE = 3
 _DORMANCY_LOOKBACK_DAYS = 60
+_MIN_PAST_POSTS = 5  # a usual ratio needs a few past posts behind it
+_MIN_PAST_ACTIVE_DAYS = 7  # usual hours need about a week of history
 
 # -- lifecycle -----------------------------------------------------------------
 
@@ -78,6 +80,45 @@ def _rate_vs_baseline(s: ActorState, as_of: datetime) -> FeatureValue:
     daily = s.activity.daily_totals()
     baseline = sum(daily.get(d, 0) for d in history_days) / len(history_days)
     return (s.activity.count(DAY, as_of) + 1) / (baseline + 1)
+
+
+def _history_days(s: ActorState, as_of: datetime) -> FeatureValue:
+    """Days of observed activity history (since first activity, not signup)."""
+    if s.first_active is None:
+        return None
+    return (as_of - s.first_active).total_seconds() / 86400
+
+
+def _past_days(as_of: datetime) -> range:
+    """The month of whole days before the last 24 hours: "how they used to behave"."""
+    recent_start = day_index(as_of - DAY)
+    return range(recent_start - MONTH.days, recent_start)
+
+
+def _past_ratio(
+    numerator: TimeSeriesCounter, denominator: TimeSeriesCounter, as_of: datetime
+) -> FeatureValue:
+    days = _past_days(as_of)
+    top = numerator.daily_totals()
+    bottom = denominator.daily_totals()
+    total = sum(bottom.get(d, 0) for d in days)
+    if total < _MIN_PAST_POSTS:
+        return None  # too little past content to say what is usual
+    return sum(top.get(d, 0) for d in days) / total
+
+
+def _new_hours_share(s: ActorState, as_of: datetime) -> FeatureValue:
+    """Share of recent activity at hours of the day this user was never active before."""
+    recent_start = day_index(as_of - DAY)
+    past = _past_days(as_of)
+    past_hours = set(s.hours.totals_between(past.start, past.stop - 1))
+    if len(set(s.activity.daily_totals()) & set(past)) < _MIN_PAST_ACTIVE_DAYS:
+        return None  # not enough history to know their usual hours
+    recent = s.hours.totals_between(recent_start, day_index(as_of))
+    total = sum(recent.values())
+    if total == 0:
+        return None
+    return sum(n for hour, n in recent.items() if hour not in past_hours) / total
 
 
 def _dormancy_gap_days(s: ActorState, as_of: datetime) -> FeatureValue:
@@ -173,6 +214,34 @@ FEATURES: tuple[Feature, ...] = (
         "rate_vs_baseline", 1, "change",
         "Last 24h activity relative to this actor's own usual daily activity.",
         _rate_vs_baseline,
+    ),
+    Feature(
+        "history_days", 1, "change",
+        "Days of observed activity history (since first activity, not signup).",
+        _history_days,
+    ),
+    Feature(
+        "link_ratio_24h", 1, "change",
+        "Share of the last 24 hours' posts that contain a link.",
+        lambda s, t: _ratio(s.with_link.count(DAY, t), s.content.count(DAY, t)),
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "link_ratio_before", 1, "change",
+        "This user's usual share of posts with links, over the month before the last day.",
+        lambda s, t: _past_ratio(s.with_link, s.content, t),
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "duplicate_ratio_before", 1, "change",
+        "This user's usual share of repeated posts, over the month before the last day.",
+        lambda s, t: _past_ratio(s.duplicates, s.content, t),
+        requires=frozenset({"content", "text"}),
+    ),
+    Feature(
+        "new_hours_share_24h", 1, "change",
+        "Share of recent activity at hours of the day this user was never active before.",
+        _new_hours_share,
     ),
     Feature(
         "dormancy_gap_days", 1, "change",

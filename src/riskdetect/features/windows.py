@@ -67,10 +67,13 @@ class DailyTally:
 
     def totals(self, window: timedelta, as_of: datetime) -> Counter[str]:
         last = day_index(as_of)
-        first = last - window.days + 1
+        return self.totals_between(last - window.days + 1, last)
+
+    def totals_between(self, first_day: int, last_day: int) -> Counter[str]:
+        """Counts over whole days ``first_day..last_day`` (day numbers from ``day_index``)."""
         total: Counter[str] = Counter()
         for day, counts in self._days.items():
-            if first <= day <= last:
+            if first_day <= day <= last_day:
                 total.update(counts)
         return total
 

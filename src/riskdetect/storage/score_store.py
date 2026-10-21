@@ -33,6 +33,7 @@ SCORE_SCHEMA = {
     "actions": "VARCHAR[]",
     "rules_version": "INTEGER",
     "scoring_version": "INTEGER",
+    "signals": "VARCHAR[]",
 }
 
 

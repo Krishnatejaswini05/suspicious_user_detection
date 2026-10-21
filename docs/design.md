@@ -1,6 +1,6 @@
 # riskdetect — Design
 
-Status: agreed design, implementation in progress (Milestones 1-7 complete).
+Status: agreed design, implementation in progress (Milestones 1-8 complete).
 Key decisions are recorded as ADRs in [adr/](adr/).
 
 ## 1. Problem
@@ -203,8 +203,8 @@ on real data.
 | 5 | `rules/`, basic `scoring/`, `explain/` | **Done** |
 | 6 | `realtime/` + realtime-equals-batch test | **Done** |
 | 7 | `labels/`, `evaluation/` | **Done** |
-| 8 | Anomaly models | Next |
-| 9 | Classifier, calibration, combiner | |
+| 8 | Anomaly models | **Done** |
+| 9 | Classifier, calibration, combiner | Next |
 | 10 | `serving/` (API + CLI) | |
 | 11 | First real-data adapter | |
 | 12 | Second real platform; content similarity and graph features; monitoring | |

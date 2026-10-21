@@ -13,6 +13,7 @@ from pathlib import Path
 
 from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms, load_platform_config
 from riskdetect.features import PercentileTable, fields_from_config
+from riskdetect.models import load_models
 from riskdetect.realtime.policy import RescorePolicy
 from riskdetect.realtime.processor import RealtimeProcessor
 from riskdetect.realtime.replay import replay
@@ -53,7 +54,8 @@ def main(argv: list[str] | None = None) -> int:
     events = ParquetEventStore(paths.events)
     scores = ParquetScoreStore(paths.scores)
     features = ParquetFeatureStore(paths.features)
-    scorer = Scorer(load_rules(args.rules), load_scoring_config(args.scoring))
+    models = load_models(paths.root / "models")
+    scorer = Scorer(load_rules(args.rules), load_scoring_config(args.scoring), models=models)
     blocked = load_domain_list(args.blocked_domains)
 
     for platform in args.platform or available_platforms(args.config_dir):
