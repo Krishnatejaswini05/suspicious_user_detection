@@ -159,3 +159,38 @@ class TestResponseFromOthers:
     ) -> None:
         with pytest.raises(ValueError):
             engine.apply(make_event(platform="synthetic_chat", event_id="synthetic_chat:1"))
+
+
+class TestChangeVersusOwnPast:
+    def test_links_up_compared_with_own_past(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for day in range(12, 2, -1):  # a quiet past: one post a day, every second one linked
+            domains = ["docs.org"] if day % 2 else []
+            engine.apply(post(make_event, T0 - timedelta(days=day), url_domains=domains))
+        for minute in range(6):  # today: every post linked
+            engine.apply(
+                post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=["x.top"])
+            )
+        values = features(engine, T0)
+        assert values["link_ratio_change_24h"] == pytest.approx(1.0 - 0.5)
+
+    def test_an_expert_who_always_links_shows_no_change(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for day in range(12, 2, -1):
+            engine.apply(post(make_event, T0 - timedelta(days=day), url_domains=["github.com"]))
+        for minute in range(6):
+            engine.apply(
+                post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=["github.com"])
+            )
+        assert features(engine, T0)["link_ratio_change_24h"] == 0.0
+
+    def test_unknown_without_enough_past(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for minute in range(6):
+            engine.apply(
+                post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=["x.top"])
+            )
+        assert features(engine, T0)["link_ratio_change_24h"] is None

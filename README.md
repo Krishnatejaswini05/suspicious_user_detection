@@ -33,7 +33,7 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 8: anomaly detection (`riskdetect.models`). Done.
 - Milestone 9: trained classifier and calibration (`riskdetect.models`). Done.
 - Milestone 10: API for other systems (`riskdetect.serving`). Done.
-- Milestone 11: real data. Next.
+- Milestone 11: first real data (monero.stackexchange.com). Done.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -127,6 +127,35 @@ Uses Python's built-in HTTP server (no extra libraries). Set `RISKDETECT_API_KEY
 an `X-API-Key` header; it refuses to listen beyond this computer without one. All logic is in
 `DetectorService`, so another web framework can wrap it unchanged.
 
+## Real data: a Stack Exchange site
+
+Any Stack Exchange site from the public data dump can be connected with a YAML file
+alone. [configs/platforms/stackexchange_monero.yaml](configs/platforms/stackexchange_monero.yaml)
+does this for monero.stackexchange.com:
+
+```bash
+# 1. download monero.stackexchange.com.7z from the data dump and extract it into
+#    data/raw/stackexchange_monero/extracted/ (data/ is not in git)
+# 2. turn the XML into JSON lines (standard library only)
+python -I scripts/stackexchange_to_jsonl.py data/raw/stackexchange_monero/extracted data/raw/stackexchange_monero
+# 3. the usual pipeline
+python -m riskdetect.ingestion --platform stackexchange_monero
+python -m riskdetect.features --platform stackexchange_monero
+python -m riskdetect.scoring --platform stackexchange_monero
+```
+
+The dump is licensed CC BY-SA; keep attribution with anything derived from it.
+
+What the first real run showed (dump of 2024-12-31, about 33,000 events):
+
+- All events loaded with no rejections and no code changes.
+- The first scoring sent 7 established members to REVIEW, 4 of them highly trusted. All
+  were legitimate: experts link to documentation a lot. The "sudden change" rule (R004)
+  now compares a user with their own past instead of with the whole site. After that
+  change: 0 REVIEW, 0 HIGH, and a few dozen users on WATCH, which is a soft signal only.
+- Deleted posts are removed from the dump, so its spam votes cannot be tied to users. There
+  are no real spam labels yet; the report card is still measured on synthetic data.
+
 ## Evaluate (the report card)
 
 ```bash
@@ -183,4 +212,4 @@ tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Next milestones (real data, coordinated groups, monitoring) are listed in the design doc.
+Next milestones (a second real platform, coordinated groups, monitoring) are listed in the design doc.

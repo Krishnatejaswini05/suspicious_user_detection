@@ -109,6 +109,11 @@ def _past_ratio(
     return sum(top.get(d, 0) for d in days) / total
 
 
+def _change(now: FeatureValue, before: FeatureValue) -> FeatureValue:
+    """How much a share went up (or down) versus this user's own past; None if either is unknown."""
+    return None if now is None or before is None else now - before
+
+
 def _new_hours_share(s: ActorState, as_of: datetime) -> FeatureValue:
     """Share of recent activity at hours of the day this user was never active before."""
     recent_start = day_index(as_of - DAY)
@@ -239,6 +244,24 @@ FEATURES: tuple[Feature, ...] = (
         "duplicate_ratio_before", 1, "change",
         "This user's usual share of repeated posts, over the month before the last day.",
         lambda s, t: _past_ratio(s.duplicates, s.content, t),
+        requires=frozenset({"content", "text"}),
+    ),
+    Feature(
+        "link_ratio_change_24h", 1, "change",
+        "How much the share of posts with links went up in the last day versus usual.",
+        lambda s, t: _change(
+            _ratio(s.with_link.count(DAY, t), s.content.count(DAY, t)),
+            _past_ratio(s.with_link, s.content, t),
+        ),
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "duplicate_ratio_change_24h", 1, "change",
+        "How much the share of repeated posts went up in the last day versus usual.",
+        lambda s, t: _change(
+            _ratio(s.duplicates.count(DAY, t), s.content.count(DAY, t)),
+            _past_ratio(s.duplicates, s.content, t),
+        ),
         requires=frozenset({"content", "text"}),
     ),
     Feature(

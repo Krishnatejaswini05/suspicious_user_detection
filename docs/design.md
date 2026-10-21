@@ -193,6 +193,15 @@ confidence. Scores decay when bad behavior stops.
 Synthetic data is for building and testing; final models must be validated and trained
 on real data.
 
+**First real run (Milestone 11).** monero.stackexchange.com connected with a YAML file
+and a small converter (`scripts/stackexchange_to_jsonl.py`), with no detector changes.
+Lessons: experts post many links, so "change" rules compare a user with their own past
+(`link_ratio_change_24h`, `duplicate_ratio_change_24h`), not with the whole site. The dump
+removes deleted posts, so spam votes cannot be linked to users and there are no real
+positive labels. The thresholds were adjusted while looking at this data, so another site
+is needed for an honest check. The simulator also needs "expert who links a lot" and
+"bulk maintainer" hard negatives.
+
 ## 10. Milestones
 
 | # | Milestone | Status |
@@ -207,5 +216,5 @@ on real data.
 | 8 | Anomaly models | **Done** |
 | 9 | Classifier, calibration, combiner | **Done** |
 | 10 | `serving/` (API + CLI) | **Done** |
-| 11 | First real-data adapter | Next |
-| 12 | Second real platform; content similarity and graph features; monitoring | |
+| 11 | First real-data adapter (Stack Exchange) | **Done** |
+| 12 | Second real platform; content similarity and graph features; monitoring | Next |

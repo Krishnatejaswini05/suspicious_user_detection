@@ -58,7 +58,7 @@ rules:
       go to the same website, and {duplicate_ratio_7d:.0%} of posts repeat earlier ones
 
   - id: R004_sudden_change_to_spam
-    description: An established account suddenly posting far more, and spammy.
+    description: An established account suddenly posting far more, and far more repetitive or link-heavy than its own past.
     category: hijacked
     score_floor: 0.6
     when:
@@ -67,12 +67,15 @@ rules:
         - {feature: rate_vs_baseline, op: ">=", value: 5}
         # Ratios need enough posts behind them: one linked post is "100% links".
         - {feature: posts_24h, op: ">=", value: 5}
+        # Compared with this user's OWN past, not with a fixed level: on real Q&A sites
+        # experts always link to sources, so "many links" alone flagged trusted members.
         - any:
-            - {feature: duplicate_ratio_24h, op: ">=", value: 0.5}
-            - {feature: link_ratio_7d, op: ">=", value: 0.6}
+            - {feature: duplicate_ratio_change_24h, op: ">=", value: 0.5}
+            - {feature: link_ratio_change_24h, op: ">=", value: 0.5}
     reason: >-
       Activity is {rate_vs_baseline:.1f}x this {account_age_days:.0f}-day-old account's usual level,
-      with repeated posts or links
+      and compared with its own past, links are up {link_ratio_change_24h:+.0%} and repeated
+      posts up {duplicate_ratio_change_24h:+.0%}
 
   - id: R008_known_scam_site
     description: Linking to a site on the blocklist of known scam or malware sites.

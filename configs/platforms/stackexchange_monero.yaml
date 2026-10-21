@@ -1,0 +1,33 @@
+# Real data: monero.stackexchange.com, from the Stack Exchange data dump (2024-12-31).
+# Content is CC BY-SA (2.5/3.0/4.0 by contribution date); see the dump's license.txt.
+#
+# Prepare the export first (downloads stay in their own folder; the converter only reads):
+#   python -I scripts/stackexchange_to_jsonl.py \
+#       data/raw/stackexchange_monero/extracted data/raw/stackexchange_monero
+#
+# This file is the only platform-specific part: no detector code changes for this site.
+platform: stackexchange_monero
+schema_version: 1
+
+source:
+  format: jsonl
+  path: data/raw/stackexchange_monero/export/
+  timezone: UTC              # dump times have no zone, and are in UTC
+
+fields:
+  event_id: id
+  actor_id: user
+  occurred_at: time
+  space_id: space            # a question's first tag
+  text: text                 # hashed into fingerprints, then discarded
+  urls: text
+  target_id: parent_id       # comments point at the post they comment on
+  target_owner_id: parent_owner
+
+event_types:
+  from_field: action
+  values:
+    signup: ACCOUNT_CREATED
+    question: CONTENT_CREATED/post
+    answer: CONTENT_CREATED/reply
+    comment: CONTENT_CREATED/reply
