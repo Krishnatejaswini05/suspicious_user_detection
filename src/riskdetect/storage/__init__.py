@@ -3,6 +3,7 @@
 from riskdetect.storage.event_store import ParquetEventStore
 from riskdetect.storage.feature_store import ParquetFeatureStore
 from riskdetect.storage.interfaces import EventStore, QuarantinedRecord, QuarantineStore
+from riskdetect.storage.label_store import ParquetLabelStore
 from riskdetect.storage.paths import DEFAULT_DATA_ROOT, DataPaths
 from riskdetect.storage.quarantine_store import ParquetQuarantineStore
 from riskdetect.storage.score_store import ParquetScoreStore
@@ -15,6 +16,7 @@ __all__ = [
     "EventStore",
     "ParquetEventStore",
     "ParquetFeatureStore",
+    "ParquetLabelStore",
     "ParquetQuarantineStore",
     "ParquetScoreStore",
     "QuarantineStore",

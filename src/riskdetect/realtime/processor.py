@@ -94,6 +94,17 @@ class RealtimeProcessor:
         now = self._now.get(event.platform, event.occurred_at)
         self._now[event.platform] = max(now, event.occurred_at)
 
+    def latest_time(self, platform: str) -> datetime | None:
+        """The newest event time seen for a platform ("now", from the data's point of view)."""
+        return self._now.get(platform)
+
+    def score_now(self, platform: str, actor_id: str) -> RiskResult | None:
+        """Score one user from their current running summary (None if never seen)."""
+        engine = self.engines.get(platform)
+        if engine is None or actor_id not in engine.states or platform not in self._now:
+            return None
+        return self._score((platform, actor_id), self._now[platform])
+
     def flush(self) -> list[RiskResult]:
         """Score every user with unscored events (e.g. at the end of a replay)."""
         return [self._score(key, self._now[key[0]]) for key in sorted(self._pending)]

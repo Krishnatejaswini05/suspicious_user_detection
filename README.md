@@ -32,7 +32,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 7: labels and evaluation (`riskdetect.labels`, `riskdetect.evaluation`). Done.
 - Milestone 8: anomaly detection (`riskdetect.models`). Done.
 - Milestone 9: trained classifier and calibration (`riskdetect.models`). Done.
-- Milestone 10: API for other systems. Next.
+- Milestone 10: API for other systems (`riskdetect.serving`). Done.
+- Milestone 11: real data. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -107,6 +108,25 @@ account age). Scoring and live scoring load the models automatically. Trust rule
 need examples, advisory on unseen platforms, HIGH needs two pieces of evidence) are in
 [docs/adr/006-plain-python-models-and-trust.md](docs/adr/006-plain-python-models-and-trust.md).
 
+## API
+
+```bash
+python -m riskdetect.serving                    # http://127.0.0.1:8000
+```
+
+| Request | What it does |
+|---|---|
+| `POST /events` `{"platform", "records"}` | Send raw records; they are translated, stored and scored live |
+| `GET /actors/{platform}/{actor_id}/risk` | Current score, tier, reasons, recommended actions |
+| `GET /actors/{platform}/{actor_id}/history` | Scores over time |
+| `GET /review-queue?platform=&limit=` | Who a person should check, most urgent first |
+| `POST /actors/{platform}/{actor_id}/review` `{"decision", "reviewer", "note"}` | Save a reviewer's verdict as a label for future training |
+| `GET /platforms`, `GET /health` | What is connected and loaded |
+
+Uses Python's built-in HTTP server (no extra libraries). Set `RISKDETECT_API_KEY` to require
+an `X-API-Key` header; it refuses to listen beyond this computer without one. All logic is in
+`DetectorService`, so another web framework can wrap it unchanged.
+
 ## Evaluate (the report card)
 
 ```bash
@@ -158,8 +178,9 @@ src/riskdetect/
   labels/           the right answers per snapshot; never read by the detector
   evaluation/       the report card: metrics, fairness by group, baselines, gates
   models/           anomaly detectors and the classifier, all plain Python
+  serving/          the API: DetectorService + a built-in HTTP server
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`serving`) are added milestone by milestone; see the design doc.
+Next milestones (real data, coordinated groups, monitoring) are listed in the design doc.

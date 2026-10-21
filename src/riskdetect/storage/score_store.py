@@ -64,13 +64,16 @@ class ParquetScoreStore:
         schema = {**SCORE_SCHEMA, "date": "VARCHAR"}
         return write_partitioned(self.history_directory, dated, schema, ("platform", "date"))
 
-    def read_history(self, platform: str) -> list[dict[str, Any]]:
-        """All live scores for a platform, oldest first."""
+    def read_history(self, platform: str, actor_id: str | None = None) -> list[dict[str, Any]]:
+        """Live scores for a platform (optionally one user), oldest first."""
         base = self.history_directory / f"platform={platform}"
         if not base.is_dir() or not any(base.glob("**/*.parquet")):
             return []
+        where, params = ("actor_id = ?", [actor_id]) if actor_id is not None else ("", [])
         rows = read_parquet(
             (base / "**" / "*.parquet").as_posix(),
+            where=where,
+            params=params,
             order_by="as_of, actor_id",
             columns=list(SCORE_SCHEMA),
         )
