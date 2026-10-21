@@ -87,17 +87,22 @@ class RealtimeProcessor:
             return self._score(key, now)
         return None
 
+    def observe(self, event: Event) -> None:
+        """Apply an event to the running summaries without scoring (history warm-up)."""
+        engine = self._engine(event.platform)
+        engine.apply(event)
+        now = self._now.get(event.platform, event.occurred_at)
+        self._now[event.platform] = max(now, event.occurred_at)
+
     def flush(self) -> list[RiskResult]:
         """Score every user with unscored events (e.g. at the end of a replay)."""
         return [self._score(key, self._now[key[0]]) for key in sorted(self._pending)]
 
     def warm_up(self, store: EventStore, platform: str, *, until: datetime | None = None) -> int:
         """Rebuild running summaries from stored events, without scoring. Returns events read."""
-        engine = self._engine(platform)
         count = 0
         for event in store.iter_events(platform, end=until):
-            engine.apply(event)
-            self._now[platform] = max(self._now.get(platform, event.occurred_at), event.occurred_at)
+            self.observe(event)
             count += 1
         return count
 

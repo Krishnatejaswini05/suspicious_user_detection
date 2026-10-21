@@ -6,8 +6,9 @@ Steps:
    score = 1 - product(1 - strength). One strong rule at 0.75 gives 0.75; two
    independent strong signals give more. Weak evidence alone is capped below REVIEW.
 3. Confidence from how much we have seen of the user.
-4. Guardrails: allowlist cap; HIGH needs high confidence (unless a critical rule
-   fired); nothing above WATCH without at least one reason.
+4. Guardrails: allowlist cap; HIGH needs high confidence and at least two independent
+   pieces of evidence (unless a critical rule fired), so a single worried voice, rule or
+   model, sends a user to a person (REVIEW) first; nothing above WATCH without a reason.
 5. Tier and recommended actions.
 """
 
@@ -109,6 +110,9 @@ class Scorer:
         confidence = confidence_from(row.get("events_seen"), self.config)
         critical = any(h.active and h.critical for h in hits)
         tier = tier_from(score, confidence, critical, self.config)
+        evidence_count = sum(1 for h in hits if h.active) + len(signals)
+        if tier is Tier.HIGH and evidence_count < 2 and not critical:
+            tier = Tier.REVIEW  # one voice alone: a person checks before strong action
         if tier in (Tier.REVIEW, Tier.HIGH) and not reasons:
             tier = Tier.WATCH  # never escalate without something a person can check
 

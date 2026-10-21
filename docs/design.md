@@ -1,6 +1,6 @@
 # riskdetect — Design
 
-Status: agreed design, implementation in progress (Milestones 1-8 complete).
+Status: agreed design, implementation in progress (Milestones 1-9 complete).
 Key decisions are recorded as ADRs in [adr/](adr/).
 
 ## 1. Problem
@@ -152,8 +152,9 @@ guardrails, mapping scores to actions. ML: weighing weak signals, interactions,
 novel patterns, ranking.
 
 **Guardrails** (cannot be bypassed): age is never the sole reason; low evidence cannot
-reach HIGH unless a strong rule fired; allowlisted accounts are capped; every flag above
-WATCH has a reason.
+reach HIGH unless a strong rule fired; HIGH needs two independent pieces of evidence unless
+a critical rule fired; allowlisted accounts are capped; every flag above WATCH has a reason.
+Model trust rules are in [ADR 006](adr/006-plain-python-models-and-trust.md).
 
 ## 7. Scoring
 
@@ -204,7 +205,7 @@ on real data.
 | 6 | `realtime/` + realtime-equals-batch test | **Done** |
 | 7 | `labels/`, `evaluation/` | **Done** |
 | 8 | Anomaly models | **Done** |
-| 9 | Classifier, calibration, combiner | Next |
-| 10 | `serving/` (API + CLI) | |
+| 9 | Classifier, calibration, combiner | **Done** |
+| 10 | `serving/` (API + CLI) | Next |
 | 11 | First real-data adapter | |
 | 12 | Second real platform; content similarity and graph features; monitoring | |

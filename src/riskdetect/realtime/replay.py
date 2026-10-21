@@ -18,11 +18,19 @@ def replay(
     start: datetime | None = None,
     end: datetime | None = None,
     flush: bool = True,
+    score_from: datetime | None = None,
 ) -> int:
-    """Feed a platform's stored events, in time order, into ``processor``. Returns events fed."""
+    """Feed a platform's stored events, in time order, into ``processor``. Returns events fed.
+
+    Events before ``score_from`` only build up history (no scoring), like connecting a
+    platform: load its history first, then go live.
+    """
     count = 0
     for event in store.iter_events(platform, start=start, end=end):
-        processor.process(event)
+        if score_from is not None and event.occurred_at < score_from:
+            processor.observe(event)
+        else:
+            processor.process(event)
         count += 1
     if flush:
         processor.flush()

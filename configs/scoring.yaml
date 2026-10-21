@@ -13,8 +13,9 @@ confidence:
   medium_from: 10
   high_from: 40
 
-# Score thresholds for each tier. HIGH also requires high confidence, unless a rule
-# with severity "critical" fired. So a user we know little about can reach REVIEW
+# Score thresholds for each tier. HIGH also requires high confidence and at least two
+# independent pieces of evidence (rules or models), unless a rule with severity "critical"
+# fired. So a user we know little about can reach REVIEW
 # (a person looks) but never HIGH on thin evidence.
 tiers:
   watch_from: 0.3

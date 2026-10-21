@@ -186,3 +186,14 @@ def test_domain_list_file(tmp_path: Path) -> None:
     path.write_text("not a domain\n", encoding="utf-8")
     with pytest.raises(ValueError, match=":1:"):
         load_domain_list(path)
+
+
+def test_replay_warm_up_builds_history_without_scoring(
+    tmp_path: Path, make_event: EventFactory, recorder: Recorder
+) -> None:
+    store = ParquetEventStore(tmp_path / "events")
+    store.append([post(make_event, T0 + timedelta(seconds=12 * i)) for i in range(30)])
+    live = processor(recorder, policy=RescorePolicy(every_events=5))
+    replay(store, "synthetic_forum", live, score_from=T0 + timedelta(seconds=12 * 20))
+    assert all(r.as_of > T0 + timedelta(seconds=12 * 20) for r in recorder.results)
+    assert live.engines["synthetic_forum"].compute("u1", T0 + timedelta(hours=1))["posts_1h"] == 30

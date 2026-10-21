@@ -29,12 +29,17 @@ def evaluate(
     history: Iterable[Mapping[str, Any]] = (),
     store: EventStore | None = None,
     fit_models: ModelFitter | None = None,
+    holdout_platform: str | None = None,
 ) -> EvaluationReport:
     """Mark the detector on the last ``config.test_days`` days of each platform's snapshots.
 
     ``fit_models`` receives each platform's *training* snapshots (percentiles refitted on
     those same rows) and returns the models to score the test period with, so models
     never learn from the test period. ``history`` and ``store`` enable the speed section.
+
+    ``holdout_platform`` tests transfer: models are fitted on the *other* platforms only,
+    and only that platform's test snapshots are marked. (Its percentiles are still learned
+    from its own earlier days, which needs no labels.)
     """
     all_rows = [row for rows in snapshots.values() for row in rows]
     if not all_rows:
@@ -47,8 +52,12 @@ def evaluate(
         train, test = time_split(rows, cutoff)
         if not test:
             continue
-        training[platform] = refit_percentiles(platform, train, train)
-        labeled += label_rows(refit_percentiles(platform, train, test), truths)
+        if platform != holdout_platform:
+            training[platform] = refit_percentiles(platform, train, train)
+        if holdout_platform is None or platform == holdout_platform:
+            labeled += label_rows(refit_percentiles(platform, train, test), truths)
+    if not labeled:
+        raise ValueError(f"no test snapshots for platform {holdout_platform!r}")
     if fit_models is not None:
         scorer = scorer.with_models(fit_models(training))
 

@@ -9,6 +9,7 @@ history to data/scores/history/ and prints each escalation as it happens.
 
 import argparse
 from collections import Counter
+from datetime import timedelta
 from pathlib import Path
 
 from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms, load_platform_config
@@ -19,6 +20,7 @@ from riskdetect.realtime.processor import RealtimeProcessor
 from riskdetect.realtime.replay import replay
 from riskdetect.rules import DEFAULT_RULES_PATH, load_rules
 from riskdetect.rules.lists import DEFAULT_BLOCKED_DOMAINS_PATH, load_domain_list
+from riskdetect.schema import EventType
 from riskdetect.scoring import (
     DEFAULT_SCORING_PATH,
     RiskResult,
@@ -48,6 +50,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--blocked-domains", type=Path, default=DEFAULT_BLOCKED_DOMAINS_PATH)
     parser.add_argument("--every-events", type=int, default=RescorePolicy.every_events)
     parser.add_argument("--quiet", action="store_true", help="do not print each escalation")
+    parser.add_argument(
+        "--warm-up-days",
+        type=int,
+        default=7,
+        help="read this many days of history before scoring starts (0 = score from the start)",
+    )
     args = parser.parse_args(argv)
 
     paths = DataPaths(args.data)
@@ -86,7 +94,21 @@ def main(argv: list[str] | None = None) -> int:
             on_result=results.append,
             on_escalation=escalate,
         )
-        fed = replay(events, platform, processor)
+        score_from = None
+        if args.warm_up_days > 0:
+            # Count from the first activity, not the first event: old accounts' signups can
+            # date back years before the data starts.
+            first = next(
+                (
+                    e
+                    for e in events.iter_events(platform)
+                    if e.event_type is not EventType.ACCOUNT_CREATED
+                ),
+                None,
+            )
+            if first is not None:
+                score_from = first.occurred_at + timedelta(days=args.warm_up_days)
+        fed = replay(events, platform, processor, score_from=score_from)
         scores.append_history([r.to_row() for r in results])
         tiers = Counter(r.tier for r in processor.latest.values())
         counts = ", ".join(f"{tier} {tiers.get(tier, 0)}" for tier in Tier)

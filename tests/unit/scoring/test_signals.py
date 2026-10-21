@@ -98,3 +98,11 @@ def test_self_baseline_features(make_event: EventFactory) -> None:
     assert values["link_ratio_before"] == 0.0
     assert values["link_ratio_24h"] == 1.0
     assert values["new_hours_share_24h"] == 1.0
+
+
+def test_high_needs_two_independent_pieces_of_evidence() -> None:
+    alone = Scorer(RULES, CONFIG, models=[FixedModel(0.95, strong=True)]).score(row())
+    assert alone.score >= CONFIG.tiers.high_from
+    assert alone.tier is Tier.REVIEW  # one voice: a person checks first
+    together = Scorer(RULES, CONFIG, models=[FixedModel(0.95, strong=True)]).score(row(posts_1h=10))
+    assert together.tier is Tier.HIGH

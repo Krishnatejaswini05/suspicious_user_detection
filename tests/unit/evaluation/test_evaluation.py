@@ -122,3 +122,52 @@ def test_labeled_row_y() -> None:
     row = {"platform": "p", "actor_id": "u", "as_of": T0}
     assert LabeledRow(row, Outcome.POSITIVE, 1.0, None).y == 1
     assert LabeledRow(row, Outcome.UNLABELED, 0.3, None).y == 0
+
+
+def test_holdout_platform_trains_elsewhere_and_marks_only_that_platform() -> None:
+    from riskdetect.evaluation import evaluate
+    from riskdetect.labels import ActorTruth
+    from riskdetect.rules import load_rules
+    from riskdetect.schema import Label
+    from riskdetect.scoring import Scorer, load_scoring_config
+
+    rows = [
+        {"platform": p, "actor_id": "u", "as_of": T0 + timedelta(days=d), "events_seen": 50.0}
+        for p in ("a", "b")
+        for d in range(10)
+    ]
+    truths = {
+        (p, "u"): ActorTruth(
+            p,
+            "u",
+            Label(
+                actor_id="u",
+                platform=p,
+                category="clean",
+                decided_at=T0 + timedelta(days=20),
+                source="synthetic",
+            ),
+        )
+        for p in ("a", "b")
+    }
+    seen: list[set[str]] = []
+
+    def fit(training: dict[str, list[dict[str, Any]]]) -> list[Any]:
+        seen.append(set(training))
+        return []
+
+    config = load_evaluation_config(PROJECT_ROOT / "configs" / "evaluation.yaml")
+    scorer = Scorer(
+        load_rules(PROJECT_ROOT / "configs" / "rules.yaml"),
+        load_scoring_config(PROJECT_ROOT / "configs" / "scoring.yaml"),
+    )
+    report = evaluate(
+        {p: [r for r in rows if r["platform"] == p] for p in ("a", "b")},
+        truths,
+        scorer,
+        config.model_copy(update={"test_days": 3}),
+        fit_models=fit,
+        holdout_platform="b",
+    )
+    assert seen == [{"a"}]  # models never saw the held-out platform
+    assert set(report.per_platform) == {"b"}

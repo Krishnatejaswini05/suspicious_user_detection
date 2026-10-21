@@ -31,7 +31,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 6: realtime scoring (`riskdetect.realtime`). Done.
 - Milestone 7: labels and evaluation (`riskdetect.labels`, `riskdetect.evaluation`). Done.
 - Milestone 8: anomaly detection (`riskdetect.models`). Done.
-- Milestone 9: trained classifier and calibration. Next.
+- Milestone 9: trained classifier and calibration (`riskdetect.models`). Done.
+- Milestone 10: API for other systems. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -94,13 +95,17 @@ to the ingestion publisher.
 ## Anomaly detection
 
 ```bash
-python -m riskdetect.models                     # fit the population model -> data/models/
+python -m riskdetect.models                     # fit the models -> data/models/
 ```
 
 Two detectors add evidence alongside the rules: a **self-baseline** check (an established
 account suddenly behaving very differently from its own past; needs no training) and a
 **population** Isolation Forest per platform (unusual compared with others; a weak signal
-that alone can only reach WATCH). Scoring and live scoring load them automatically.
+that alone can only reach WATCH). When labels exist it also trains a **classifier**:
+plain-Python boosted trees with isotonic calibration, using behavior features only (never
+account age). Scoring and live scoring load the models automatically. Trust rules (ratios
+need examples, advisory on unseen platforms, HIGH needs two pieces of evidence) are in
+[docs/adr/006-plain-python-models-and-trust.md](docs/adr/006-plain-python-models-and-trust.md).
 
 ## Evaluate (the report card)
 
@@ -111,7 +116,9 @@ python -m riskdetect.evaluation                 # writes data/reports/evaluation
 Tests on the last week of snapshots, with percentiles learned from earlier weeks only.
 Reports precision, recall, false alarms per group (new accounts above all), live speed,
 and a comparison with lazy shortcuts (random, age-only, volume-only). Exits with status 1
-if any gate in [configs/evaluation.yaml](configs/evaluation.yaml) fails.
+if any gate in [configs/evaluation.yaml](configs/evaluation.yaml) fails. Add
+`--holdout-platform synthetic_market` to train the models on the other platforms only
+(transfer test), or `--rules-only` to compare without models.
 
 ## Setup
 
@@ -150,7 +157,7 @@ src/riskdetect/
   realtime/         live rescoring the moment users act; replay for measuring speed
   labels/           the right answers per snapshot; never read by the detector
   evaluation/       the report card: metrics, fairness by group, baselines, gates
-  models/           anomaly detectors: own-past change, Isolation Forest (plain Python)
+  models/           anomaly detectors and the classifier, all plain Python
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```

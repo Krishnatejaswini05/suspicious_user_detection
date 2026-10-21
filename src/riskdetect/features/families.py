@@ -18,6 +18,8 @@ _MIN_BASELINE_DAYS = 3
 _MIN_LINKS_FOR_SHARE = 3
 _DORMANCY_LOOKBACK_DAYS = 60
 _MIN_PAST_POSTS = 5  # a usual ratio needs a few past posts behind it
+# A percentage of fewer posts than this is "unknown": one linked post is not "100% links".
+_MIN_RATIO_POSTS = 3
 _MIN_PAST_ACTIVE_DAYS = 7  # usual hours need about a week of history
 
 # -- lifecycle -----------------------------------------------------------------
@@ -138,7 +140,8 @@ def _dormancy_gap_days(s: ActorState, as_of: datetime) -> FeatureValue:
 
 
 def _ratio(numerator: int, denominator: int) -> FeatureValue:
-    return None if denominator == 0 else numerator / denominator
+    """A share of posts, or None ("unknown") when there are too few posts to say."""
+    return None if denominator < _MIN_RATIO_POSTS else numerator / denominator
 
 
 def _top_domain_share_7d(s: ActorState, as_of: datetime) -> FeatureValue:
@@ -221,7 +224,7 @@ FEATURES: tuple[Feature, ...] = (
         _history_days,
     ),
     Feature(
-        "link_ratio_24h", 1, "change",
+        "link_ratio_24h", 2, "change",
         "Share of the last 24 hours' posts that contain a link.",
         lambda s, t: _ratio(s.with_link.count(DAY, t), s.content.count(DAY, t)),
         requires=frozenset({"content", "urls"}),
@@ -250,24 +253,24 @@ FEATURES: tuple[Feature, ...] = (
     ),
     # content
     Feature(
-        "duplicate_ratio_24h", 1, "content",
+        "duplicate_ratio_24h", 2, "content",
         "Share of the last 24h's posts that copy (or nearly copy) the actor's recent posts.",
         lambda s, t: _ratio(s.duplicates.count(DAY, t), s.content.count(DAY, t)),
         requires=frozenset({"content", "text"}),
     ),
     Feature(
-        "duplicate_ratio_7d", 1, "content",
+        "duplicate_ratio_7d", 2, "content",
         "Share of the last 7 days' posts that copy (or nearly copy) recent posts.",
         lambda s, t: _ratio(s.duplicates.count(WEEK, t), s.content.count(WEEK, t)),
         requires=frozenset({"content", "text"}),
     ),
     Feature(
-        "link_ratio_7d", 1, "content", "Share of the last 7 days' posts that contain a link.",
+        "link_ratio_7d", 2, "content", "Share of the last 7 days' posts that contain a link.",
         lambda s, t: _ratio(s.with_link.count(WEEK, t), s.content.count(WEEK, t)),
         requires=frozenset({"content", "urls"}),
     ),
     Feature(
-        "shortener_ratio_7d", 1, "content",
+        "shortener_ratio_7d", 2, "content",
         "Share of the last 7 days' posts that use a URL shortener such as bit.ly.",
         lambda s, t: _ratio(s.with_shortener.count(WEEK, t), s.content.count(WEEK, t)),
         requires=frozenset({"content", "urls"}),
@@ -302,7 +305,7 @@ FEATURES: tuple[Feature, ...] = (
         requires=frozenset({"reports", "target_owner_id"}), percentile=True,
     ),
     Feature(
-        "replies_per_post_7d", 1, "response",
+        "replies_per_post_7d", 2, "response",
         "Replies received per post in the last 7 days (spam rarely gets real replies).",
         lambda s, t: _ratio(s.replies_received.count(WEEK, t), s.content.count(WEEK, t)),
         requires=frozenset({"content", "target_owner_id"}),

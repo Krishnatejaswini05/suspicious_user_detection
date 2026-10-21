@@ -112,6 +112,7 @@ def test_command_line_replays_and_records_history(live: tuple[Path, list[RiskRes
     args = ["--data", str(data), "--config-dir", str(CONFIGS / "platforms"), "--platform", PLATFORM]
     args += ["--rules", str(CONFIGS / "rules.yaml"), "--scoring", str(CONFIGS / "scoring.yaml")]
     args += ["--blocked-domains", str(CONFIGS / "lists" / "blocked_domains.txt"), "--quiet"]
+    args += ["--warm-up-days", "2"]  # the tiny world is only a week long
     assert main(args) == 0
     history = ParquetScoreStore(DataPaths(data).scores).read_history(PLATFORM)
     assert history

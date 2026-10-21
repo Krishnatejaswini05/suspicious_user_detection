@@ -146,9 +146,13 @@ class TestResponseFromOthers:
             )
         )
         values = features(engine, T0)
-        assert values["replies_per_post_7d"] == 1.0
+        assert values["replies_per_post_7d"] is None  # one post: too few to judge
         assert values["reports_received_7d"] == 1.0
         assert features(engine, T0, actor="u2")["reports_received_7d"] == 0.0
+
+        engine.apply(post(make_event, T0 - timedelta(hours=3)))
+        engine.apply(post(make_event, T0 - timedelta(hours=4)))
+        assert features(engine, T0)["replies_per_post_7d"] == pytest.approx(1 / 3)
 
     def test_wrong_platform_is_rejected(
         self, engine: FeatureEngine, make_event: EventFactory

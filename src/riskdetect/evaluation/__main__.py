@@ -16,7 +16,7 @@ from riskdetect.evaluation.gates import DEFAULT_EVALUATION_PATH, load_evaluation
 from riskdetect.evaluation.run import evaluate
 from riskdetect.features import FeatureRow
 from riskdetect.labels import truths_from_answer_key
-from riskdetect.models import PopulationAnomaly, SelfBaselineAnomaly
+from riskdetect.models import PopulationAnomaly, SelfBaselineAnomaly, train_classifier
 from riskdetect.rules import DEFAULT_RULES_PATH, load_rules
 from riskdetect.scoring import DEFAULT_SCORING_PATH, Scorer, SignalSource, load_scoring_config
 from riskdetect.storage import (
@@ -39,7 +39,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scoring", type=Path, default=DEFAULT_SCORING_PATH)
     parser.add_argument("--evaluation", type=Path, default=DEFAULT_EVALUATION_PATH)
     parser.add_argument(
-        "--rules-only", action="store_true", help="evaluate without the anomaly detectors"
+        "--rules-only", action="store_true", help="evaluate rules alone, without any models"
+    )
+    parser.add_argument(
+        "--holdout-platform",
+        help="train models on the other platforms and test only on this one (transfer test)",
     )
     args = parser.parse_args(argv)
 
@@ -51,25 +55,44 @@ def main(argv: list[str] | None = None) -> int:
     history = [row for p in platforms for row in scores.read_history(p)]
 
     config = load_evaluation_config(args.evaluation)
+    truths = truths_from_answer_key(paths.root / ANSWER_KEY_PATH)
+
+    notes: list[str] = []
 
     def fit_models(training: dict[str, list[FeatureRow]]) -> list[SignalSource]:
-        return [SelfBaselineAnomaly(), PopulationAnomaly.fit(training, seed=config.seed)]
+        models: list[SignalSource] = [
+            SelfBaselineAnomaly(),
+            PopulationAnomaly.fit(training, seed=config.seed),
+        ]
+        rows = [row for platform_rows in training.values() for row in platform_rows]
+        try:
+            models.append(train_classifier(rows, truths))
+        except ValueError as exc:  # e.g. no training period, or only one kind of label
+            notes.append(f"Classifier not used: {exc}.")
+        return models
 
     report = evaluate(
         snapshots,
-        truths_from_answer_key(paths.root / ANSWER_KEY_PATH),
+        truths,
         Scorer(load_rules(args.rules), load_scoring_config(args.scoring)),
         config,
         history=history,
         store=ParquetEventStore(paths.events) if history else None,
         fit_models=None if args.rules_only else fit_models,
+        holdout_platform=args.holdout_platform,
     )
     report.notes.append(
         "Detectors: rules only."
         if args.rules_only
-        else "Detectors: rules + self-baseline + population anomaly (fitted on the training "
-        "period only)."
+        else "Detectors: rules + self-baseline + population anomaly + classifier (models fitted "
+        "on the training period only)."
     )
+    report.notes += notes
+    if args.holdout_platform:
+        report.notes.append(
+            f"Transfer test: models never saw {args.holdout_platform}; only its test period "
+            "is marked."
+        )
     report.notes.append(
         "Synthetic data: the rules were written knowing how the simulator behaves, so these "
         "numbers are an upper bound, not a promise for real platforms."

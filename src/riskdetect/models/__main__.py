@@ -1,18 +1,25 @@
-"""Fit the population anomaly model on stored feature snapshots.
+"""Fit the models on stored feature snapshots.
 
     python -m riskdetect.models
 
 Reads data/features/platform=<p>/snapshots.parquet (from `python -m riskdetect.features`)
-and writes data/models/population_anomaly.json. Scoring and live scoring pick it up
+and writes data/models/population_anomaly.json, plus data/models/classifier.json when
+labels exist (data/labels/answer_key.parquet). Scoring and live scoring pick them up
 automatically. (For a fair evaluation, `python -m riskdetect.evaluation` fits its own
-copy on the training period only.)
+copies on the training period only.)
 """
 
 import argparse
 from pathlib import Path
 
 from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms
-from riskdetect.models import PopulationAnomaly, save_population_model
+from riskdetect.labels import truths_from_answer_key
+from riskdetect.models import (
+    PopulationAnomaly,
+    save_classifier,
+    save_population_model,
+    train_classifier,
+)
 from riskdetect.storage import DEFAULT_DATA_ROOT, DataPaths, ParquetFeatureStore
 
 
@@ -33,6 +40,15 @@ def main(argv: list[str] | None = None) -> int:
     fitted = ", ".join(f"{p} ({len(rows[p]):,} snapshots)" for p in sorted(model.platforms))
     print(f"Fitted population anomaly model for: {fitted or 'nothing'}")
     print(f"Saved to {path}")
+
+    answer_key = paths.labels / "answer_key.parquet"
+    if not answer_key.exists():
+        print("No labels yet: the classifier was not trained.")
+        return 0
+    all_rows = [row for platform_rows in rows.values() for row in platform_rows]
+    classifier = train_classifier(all_rows, truths_from_answer_key(answer_key))
+    print(f"Trained classifier on {len(all_rows):,} snapshots")
+    print(f"Saved to {save_classifier(classifier, paths.root / 'models')}")
     return 0
 
 
