@@ -21,7 +21,14 @@ from typing import Any
 from riskdetect.schema import Label, LabelSource
 from riskdetect.synthetic.actions import CREATES_CONTENT, TARGETS_CONTENT
 from riskdetect.synthetic.actions import SynthAction as A
-from riskdetect.synthetic.content import CAMPAIGNS, Campaign, normal_text, spam_link, spam_text
+from riskdetect.synthetic.content import (
+    CAMPAIGNS,
+    Campaign,
+    normal_text,
+    notice_text,
+    spam_link,
+    spam_text,
+)
 from riskdetect.synthetic.personas import PERSONAS, PersonaName, PersonaSpec
 from riskdetect.synthetic.platforms import PROFILES, PlatformProfile, ResolvedAction
 from riskdetect.synthetic.scenario import Scenario
@@ -74,6 +81,7 @@ class _User:
     link: str | None
     bursts_per_day: float
     interval_seconds: float
+    busy_days: frozenset[int] = frozenset()  # personal busy days (day numbers in the window)
 
 
 _Item = tuple[str, str, str | None, bool]  # (content_id, owner, space, is_spam)
@@ -169,6 +177,10 @@ def _make_user(
     campaign = rng.choice(CAMPAIGNS) if spec.is_bad else None
     n_spaces = min(rng.randint(*spec.habits.home_spaces), len(profile.spaces))
     bot = spec.bot
+    busy_days: frozenset[int] = frozenset()
+    if spec.busy is not None:
+        count = min(rng.randint(*spec.busy.count), scenario.duration_days)
+        busy_days = frozenset(rng.sample(range(scenario.duration_days), count))
     return _User(
         actor_id=actor_id,
         spec=spec,
@@ -182,6 +194,7 @@ def _make_user(
         link=spam_link(rng, campaign) if campaign else None,
         bursts_per_day=rng.uniform(*bot.bursts_per_day) if bot else 0.0,
         interval_seconds=rng.uniform(*bot.interval_seconds) if bot else 0.0,
+        busy_days=busy_days,
     )
 
 
@@ -200,6 +213,10 @@ def _plan(
     for day in range(scenario.duration_days):
         day_start = scenario.start + timedelta(days=day)
         boost = 2.0 if day in busy_days else 1.0
+        busy = user.spec.busy if day in user.busy_days else None
+        if busy is not None:
+            boost *= busy.boost
+        notices = busy is not None and busy.notices
         for moment in human_day(
             user.rng,
             day_start,
@@ -209,7 +226,7 @@ def _plan(
             habits.actions_per_session * profile.activity,
         ):
             if active_from <= moment < min(human_until, scenario.end):
-                intent = _human_action(profile, user, moment)
+                intent = _human_action(profile, user, moment, notices=notices)
                 if intent is not None:
                     intents.append(intent)
 
@@ -222,13 +239,20 @@ def _plan(
     return intents
 
 
-def _human_action(profile: PlatformProfile, user: _User, moment: datetime) -> _Intent | None:
+def _human_action(
+    profile: PlatformProfile, user: _User, moment: datetime, *, notices: bool = False
+) -> _Intent | None:
     rng = user.rng
-    actions = list(user.spec.habits.weights)
-    weights = [profile.weight(a, user.spec.habits.weights[a]) for a in actions]
+    habits = user.spec.habits
+    actions = list(habits.weights)
+    weights = [profile.weight(a, habits.weights[a]) for a in actions]
     if sum(weights) <= 0:
         return None
     action = rng.choices(actions, weights=weights)[0]
+    if notices and action in CREATES_CONTENT:
+        # A day of telling many threads that a page has moved.
+        text = notice_text(rng, profile.text_style, habits.link_domains or ("docs.example.org",))
+        return _Intent(moment, user.actor_id, A.REPLY, text, rng.choice(user.spaces))
     if action not in CREATES_CONTENT:
         return _Intent(moment, user.actor_id, action)
 
@@ -237,8 +261,8 @@ def _human_action(profile: PlatformProfile, user: _User, moment: datetime) -> _I
     if abusing and user.campaign is not None and user.link is not None:
         text = spam_text(rng, user.campaign, user.link)
         return _Intent(moment, user.actor_id, action, text, space, is_spam=True)
-    link_rate = _PRE_ABUSE_LINK_RATE if user.spec.is_bad else user.spec.habits.link_rate
-    text = normal_text(rng, profile.text_style, link_rate)
+    link_rate = _PRE_ABUSE_LINK_RATE if user.spec.is_bad else habits.link_rate
+    text = normal_text(rng, profile.text_style, link_rate, habits.link_domains)
     return _Intent(moment, user.actor_id, action, text, space)
 
 

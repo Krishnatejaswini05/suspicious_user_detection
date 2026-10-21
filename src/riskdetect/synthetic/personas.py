@@ -1,8 +1,12 @@
 """Types of simulated users and how each behaves.
 
 Good personas that look a little unusual (enthusiastic new user, power user,
-lurker) matter as much as the bad ones: they test that the detector does NOT
-flag innocent people. The enthusiastic new user is the key fairness case.
+lurker, expert linker, maintainer) matter as much as the bad ones: they test that
+the detector does NOT flag innocent people. The enthusiastic new user is the key
+fairness case. The expert linker and the maintainer come from the first real data
+(monero.stackexchange.com): trusted members who always link to sources, and who
+sometimes have a very busy day - answering a pile of questions, or telling many
+threads that a page has moved.
 """
 
 from collections.abc import Mapping
@@ -21,6 +25,8 @@ class PersonaName(StrEnum):
     SPAM_BOT = "spam_bot"
     SLOW_SPAMMER = "slow_spammer"
     HIJACKED = "hijacked"
+    EXPERT_LINKER = "expert_linker"
+    MAINTAINER = "maintainer"
 
 
 @dataclass(frozen=True)
@@ -32,6 +38,16 @@ class HumanHabits:
     weights: Mapping[A, float]  # relative chance of each action within a session
     link_rate: float  # share of posts/replies that contain a link
     home_spaces: tuple[int, int]  # how many spaces the user is active in (min, max)
+    link_domains: tuple[str, ...] | None = None  # sites they link to; None = everyday mix
+
+
+@dataclass(frozen=True)
+class BusyDays:
+    """A few personal days of much more activity than usual (innocent, not abuse)."""
+
+    count: tuple[int, int]  # how many such days in the window (min, max)
+    boost: float  # how many times the usual sessions
+    notices: bool = False  # spend the day replying "this has moved, see <link>"
 
 
 @dataclass(frozen=True)
@@ -56,6 +72,7 @@ class PersonaSpec:
     # When abuse begins, as a share of the window (or days after creation for new bots).
     abuse_start: tuple[float, float] | None = None
     bot: BotHabits | None = None
+    busy: BusyDays | None = None
 
     @property
     def is_bad(self) -> bool:
@@ -71,6 +88,7 @@ _NORMAL_WEIGHTS = {
     A.FOLLOW: 0.03,
     A.REPORT: 0.02,
 }
+_DOCS_DOMAINS = ("docs.example.org", "github.com", "wikipedia.org")
 _SPAM_BURSTS = BotHabits(
     bursts_per_day=(2.0, 5.0),
     burst_size=(5, 20),
@@ -163,5 +181,35 @@ PERSONAS: dict[PersonaName, PersonaSpec] = {
             interval_seconds=(10.0, 45.0),
             reply_share=0.3,
         ),
+    ),
+    PersonaName.EXPERT_LINKER: PersonaSpec(
+        name=PersonaName.EXPERT_LINKER,
+        category=LabelCategory.CLEAN,
+        account_age_days=(200, 2000),
+        created_in_window=(0, 0),
+        habits=HumanHabits(
+            1.5,
+            4.0,
+            {**_NORMAL_WEIGHTS, A.POST: 0.10, A.REPLY: 0.45, A.VOTE_UP: 0.30},
+            link_rate=0.75,  # answers cite documentation and sources
+            home_spaces=(2, 6),
+            link_domains=_DOCS_DOMAINS,
+        ),
+        busy=BusyDays(count=(1, 3), boost=6.0),  # an answering spree
+    ),
+    PersonaName.MAINTAINER: PersonaSpec(
+        name=PersonaName.MAINTAINER,
+        category=LabelCategory.CLEAN,
+        account_age_days=(300, 2000),
+        created_in_window=(0, 0),
+        habits=HumanHabits(
+            1.2,
+            4.0,
+            _NORMAL_WEIGHTS,
+            link_rate=0.30,
+            home_spaces=(3, 8),
+            link_domains=_DOCS_DOMAINS,
+        ),
+        busy=BusyDays(count=(1, 2), boost=6.0, notices=True),  # "the docs moved" day
     ),
 }

@@ -69,13 +69,18 @@ rules:
         - {feature: posts_24h, op: ">=", value: 5}
         # Compared with this user's OWN past, not with a fixed level: on real Q&A sites
         # experts always link to sources, so "many links" alone flagged trusted members.
+        # More links only counts when they go to sites the user never used before: a
+        # maintainer telling many threads "this moved, see <docs page>" is not a thief.
         - any:
             - {feature: duplicate_ratio_change_24h, op: ">=", value: 0.5}
-            - {feature: link_ratio_change_24h, op: ">=", value: 0.5}
+            - all:
+                - {feature: link_ratio_change_24h, op: ">=", value: 0.5}
+                - {feature: new_domain_link_share_24h, op: ">=", value: 0.5}
     reason: >-
       Activity is {rate_vs_baseline:.1f}x this {account_age_days:.0f}-day-old account's usual level,
-      and compared with its own past, links are up {link_ratio_change_24h:+.0%} and repeated
-      posts up {duplicate_ratio_change_24h:+.0%}
+      and compared with its own past, links are up {link_ratio_change_24h:+.0%}
+      ({new_domain_link_share_24h:.0%} to sites it never linked before) and repeated posts
+      up {duplicate_ratio_change_24h:+.0%}
 
   - id: R008_known_scam_site
     description: Linking to a site on the blocklist of known scam or malware sites.

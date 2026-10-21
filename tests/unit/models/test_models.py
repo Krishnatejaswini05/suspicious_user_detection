@@ -147,9 +147,22 @@ class TestSelfBaseline:
         assert change_score(few) == 0.0
 
     def test_new_hours_only_support_a_change(self) -> None:
-        drift = established(link_ratio_24h=0.6, new_hours_share_24h=1.0)
+        drift = established(
+            link_ratio_24h=0.6, new_domain_link_share_24h=1.0, new_hours_share_24h=1.0
+        )
         assert change_score(drift) == pytest.approx(0.55 * 0.5)
         assert not SelfBaselineAnomaly().signals(drift)[0].strong
+
+    def test_more_links_to_the_usual_sites_is_not_a_change(self) -> None:
+        # A maintainer's "this page moved, see <docs>" day: links up, busy, same sites.
+        maintainer = established(
+            link_ratio_24h=1.0, rate_vs_baseline=8.0, new_domain_link_share_24h=0.0
+        )
+        assert change_score(maintainer) == 0.0
+        thief = established(link_ratio_24h=1.0, rate_vs_baseline=8.0, new_domain_link_share_24h=1.0)
+        [signal] = SelfBaselineAnomaly().signals(thief)
+        assert signal.strong
+        assert "100% of recent links to sites never linked before" in signal.reason
 
 
 def test_command_line_fits_and_saves(tmp_path: Path) -> None:

@@ -194,3 +194,22 @@ class TestChangeVersusOwnPast:
                 post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=["x.top"])
             )
         assert features(engine, T0)["link_ratio_change_24h"] is None
+        assert features(engine, T0)["new_domain_link_share_24h"] is None
+
+    def test_links_to_sites_never_used_before(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for day in range(12, 2, -1):
+            engine.apply(post(make_event, T0 - timedelta(days=day), url_domains=["github.com"]))
+        domains = ["github.com", "x.top", "x.top", "x.top"]
+        for minute, domain in enumerate(domains):
+            engine.apply(post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=[domain]))
+        assert features(engine, T0)["new_domain_link_share_24h"] == pytest.approx(3 / 4)
+
+    def test_no_past_links_makes_every_link_new(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for day in range(12, 2, -1):
+            engine.apply(post(make_event, T0 - timedelta(days=day)))
+        engine.apply(post(make_event, T0 - timedelta(minutes=1), url_domains=["x.top"]))
+        assert features(engine, T0)["new_domain_link_share_24h"] == 1.0

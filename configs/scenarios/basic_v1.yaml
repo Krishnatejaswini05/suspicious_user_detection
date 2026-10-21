@@ -1,5 +1,6 @@
 # Default simulation: three platforms, four weeks, mostly normal users plus
-# hard-but-innocent users and three kinds of bad actors.
+# hard-but-innocent users and three kinds of bad actors. The expert linker and the
+# maintainer copy trusted members seen in real Stack Exchange data.
 #
 # Run:  python -m riskdetect.synthetic --scenario configs/scenarios/basic_v1.yaml --out data
 # The same seed always produces exactly the same data.
@@ -19,6 +20,8 @@ persona_mix:            # shares; they are normalized, so they need not sum to e
   enthusiastic_new: 0.05
   power_user: 0.04
   lurker: 0.06
+  expert_linker: 0.03   # always links to sources; has answering sprees
+  maintainer: 0.02      # has "this page moved, see <link>" days
   spam_bot: 0.02
   slow_spammer: 0.02
   hijacked: 0.01

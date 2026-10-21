@@ -128,6 +128,24 @@ def _new_hours_share(s: ActorState, as_of: datetime) -> FeatureValue:
     return sum(n for hour, n in recent.items() if hour not in past_hours) / total
 
 
+def _new_domain_link_share(s: ActorState, as_of: datetime) -> FeatureValue:
+    """Share of recent links going to sites this user never linked to before.
+
+    A stolen account pushes the thief's site; an expert keeps citing the same sources.
+    A user with enough past posts but no past links counts every link as new.
+    """
+    past = _past_days(as_of)
+    past_content = s.content.daily_totals()
+    if sum(past_content.get(d, 0) for d in past) < _MIN_PAST_POSTS:
+        return None  # too little past to know which sites they use
+    known = set(s.domains.totals_between(past.start, past.stop - 1))
+    recent = s.domains.totals_between(day_index(as_of - DAY), day_index(as_of))
+    total = sum(recent.values())
+    if total == 0:
+        return None
+    return sum(n for domain, n in recent.items() if domain not in known) / total
+
+
 def _dormancy_gap_days(s: ActorState, as_of: datetime) -> FeatureValue:
     """Longest run of inactive days between active days in the last 60 days."""
     today = day_index(as_of)
@@ -263,6 +281,12 @@ FEATURES: tuple[Feature, ...] = (
             _past_ratio(s.duplicates, s.content, t),
         ),
         requires=frozenset({"content", "text"}),
+    ),
+    Feature(
+        "new_domain_link_share_24h", 1, "change",
+        "Share of recent links going to websites this user never linked to before.",
+        _new_domain_link_share,
+        requires=frozenset({"content", "urls"}),
     ),
     Feature(
         "new_hours_share_24h", 1, "change",

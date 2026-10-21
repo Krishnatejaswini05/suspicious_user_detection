@@ -140,8 +140,9 @@ does this for monero.stackexchange.com:
 python -I scripts/stackexchange_to_jsonl.py data/raw/stackexchange_monero/extracted data/raw/stackexchange_monero
 # 3. the usual pipeline
 python -m riskdetect.ingestion --platform stackexchange_monero
-python -m riskdetect.features --platform stackexchange_monero
-python -m riskdetect.scoring --platform stackexchange_monero
+python -m riskdetect.features --platform stackexchange_monero --days 3100   # the site's whole history
+python -m riskdetect.models                                                # population model for this site
+python -m riskdetect.scoring --platform stackexchange_monero --all-snapshots
 ```
 
 The dump is licensed CC BY-SA; keep attribution with anything derived from it.
@@ -155,6 +156,11 @@ What the first real run showed (dump of 2024-12-31, about 33,000 events):
   change: 0 REVIEW, 0 HIGH, and a few dozen users on WATCH, which is a soft signal only.
 - Deleted posts are removed from the dump, so its spam votes cannot be tied to users. There
   are no real spam labels yet; the report card is still measured on synthetic data.
+- Those trusted members are now simulated too (`expert_linker`, `maintainer`). The
+  maintainer exposed one more gap: a day of "this page moved, see <docs>" replies still
+  looked like a stolen account. Extra links now count only when they go to sites the user
+  never linked before (`new_domain_link_share_24h`), in R004 and in the self-baseline
+  model. On the real site, the soft WATCH signals dropped from 35 users to 27.
 
 ## Evaluate (the report card)
 

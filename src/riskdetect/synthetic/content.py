@@ -87,16 +87,39 @@ CAMPAIGNS = (
 )
 
 
-def normal_text(rng: random.Random, style: TextStyle, link_rate: float) -> str:
+def normal_text(
+    rng: random.Random,
+    style: TextStyle,
+    link_rate: float,
+    domains: tuple[str, ...] | None = None,
+) -> str:
     """Varied everyday text; sometimes a mention or an ordinary link."""
     words = rng.choices(_WORDS, k=rng.randint(style.min_words, style.max_words))
     text = " ".join(words).capitalize() + rng.choice((".", ".", "!", "?"))
     if rng.random() < 0.05:
         text += f" @user{rng.randint(1, 999)}"
     if rng.random() < link_rate:
-        path = "".join(rng.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=8))
-        text += f" https://{rng.choice(_BENIGN_DOMAINS)}/{path}"
+        text += " " + _link(rng, domains or _BENIGN_DOMAINS)
     return text
+
+
+_NOTICE_OPENERS = (
+    "This page has moved, the new one is",
+    "That link no longer works, see",
+    "The docs moved; the current page is",
+)
+
+
+def notice_text(rng: random.Random, style: TextStyle, domains: tuple[str, ...]) -> str:
+    """A "this has moved" reply: a familiar opener, but a new page and context each time."""
+    words = rng.choices(_WORDS, k=rng.randint(style.min_words, style.max_words))
+    context = " ".join(words).capitalize() + "."
+    return f"{rng.choice(_NOTICE_OPENERS)} {_link(rng, domains)} {context}"
+
+
+def _link(rng: random.Random, domains: tuple[str, ...]) -> str:
+    path = "".join(rng.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=8))
+    return f"https://{rng.choice(domains)}/{path}"
 
 
 def spam_link(rng: random.Random, campaign: Campaign) -> str:

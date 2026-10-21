@@ -199,8 +199,13 @@ Lessons: experts post many links, so "change" rules compare a user with their ow
 (`link_ratio_change_24h`, `duplicate_ratio_change_24h`), not with the whole site. The dump
 removes deleted posts, so spam votes cannot be linked to users and there are no real
 positive labels. The thresholds were adjusted while looking at this data, so another site
-is needed for an honest check. The simulator also needs "expert who links a lot" and
-"bulk maintainer" hard negatives.
+is needed for an honest check.
+
+The simulator now has those two hard negatives: `expert_linker` (always cites sources,
+has answering sprees) and `maintainer` (has days of "this page moved, see <docs>" replies).
+The maintainer showed that "more links than usual" is not enough to suggest a stolen
+account, so the R004 rule and the self-baseline model count extra links only when they
+go to sites the user never linked before (`new_domain_link_share_24h`).
 
 ## 10. Milestones
 
