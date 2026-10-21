@@ -90,7 +90,9 @@ PERSONAS: dict[PersonaName, PersonaSpec] = {
         name=PersonaName.ENTHUSIASTIC_NEW,
         category=LabelCategory.CLEAN,
         account_age_days=None,
-        created_in_window=(0.0, 0.6),
+        # Join throughout the window, so every test period contains genuinely new,
+        # innocent accounts for the fairness checks.
+        created_in_window=(0.0, 0.95),
         habits=HumanHabits(
             3.0,
             7.0,

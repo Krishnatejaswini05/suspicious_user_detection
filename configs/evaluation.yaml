@@ -1,0 +1,20 @@
+# How the detector is marked, and what it must achieve to be accepted.
+#
+# The detector is tested on the last `test_days` days of daily snapshots. Percentiles
+# (what is "normal" on each platform) are learned from the earlier days only, so the
+# test period cannot leak into the preparation.
+
+version: 1
+test_days: 7
+precision_at: [10, 50, 100]
+seed: 0  # for the random baseline
+
+# A version is accepted only if every gate passes.
+gates:
+  min_recall: 0.85                       # share of bad snapshots flagged
+  min_precision: 0.9                     # share of flags that were right
+  min_average_precision: 0.8             # quality of the whole ranking
+  max_false_positive_rate: 0.005         # share of innocent snapshots flagged
+  max_new_account_false_positive_rate: 0.005
+  max_new_account_fpr_ratio: 2.0         # new accounts may not be flagged more than 2x as often
+  must_beat_baselines: [random, age_only, volume_only]   # on average precision

@@ -29,7 +29,8 @@ See [docs/design.md](docs/design.md) for the full design and
 - Milestone 4: behavioral features (`riskdetect.features`). Done.
 - Milestone 5: rules, scoring and explanations (`rules`, `scoring`, `explain`). Done.
 - Milestone 6: realtime scoring (`riskdetect.realtime`). Done.
-- Milestone 7: labels and evaluation. Next.
+- Milestone 7: labels and evaluation (`riskdetect.labels`, `riskdetect.evaluation`). Done.
+- Milestone 8: anomaly detection. Next.
 
 To connect a platform, copy [configs/platforms/_template.yaml](configs/platforms/_template.yaml).
 
@@ -48,6 +49,7 @@ seed always produces the same data.
 ```bash
 python -m riskdetect.ingestion                  # every platform in configs/platforms/
 python -m riskdetect.ingestion --platform synthetic_forum
+python -m riskdetect.ingestion --data other/data --base-dir other   # data kept elsewhere
 ```
 
 Raw files are translated by the adapters, deduplicated, and stored as Parquet under
@@ -88,6 +90,17 @@ immediately for alarming events such as a link to a site in
 appended to `data/scores/history/`. In a deployment, `RealtimeProcessor.on_events` subscribes
 to the ingestion publisher.
 
+## Evaluate (the report card)
+
+```bash
+python -m riskdetect.evaluation                 # writes data/reports/evaluation.md
+```
+
+Tests on the last week of snapshots, with percentiles learned from earlier weeks only.
+Reports precision, recall, false alarms per group (new accounts above all), live speed,
+and a comparison with lazy shortcuts (random, age-only, volume-only). Exits with status 1
+if any gate in [configs/evaluation.yaml](configs/evaluation.yaml) fails.
+
 ## Setup
 
 Requires Python 3.11+.
@@ -123,8 +136,10 @@ src/riskdetect/
   scoring/          rules -> score, confidence, tier, actions (with fairness guardrails)
   explain/          readable reasons for every flag
   realtime/         live rescoring the moment users act; replay for measuring speed
+  labels/           the right answers per snapshot; never read by the detector
+  evaluation/       the report card: metrics, fairness by group, baselines, gates
 tests/              unit, integration and invariant tests
 data/               local data (not in git)
 ```
 
-Further packages (`models`, `labels`, `evaluation`, `serving`) are added milestone by milestone; see the design doc.
+Further packages (`models`, `serving`) are added milestone by milestone; see the design doc.

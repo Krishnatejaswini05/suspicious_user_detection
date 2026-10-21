@@ -20,12 +20,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--platform", action="append", help="platform to ingest (repeatable)")
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA_ROOT, help="data folder")
     parser.add_argument("--config-dir", type=Path, default=DEFAULT_CONFIG_DIR)
+    parser.add_argument(
+        "--base-dir",
+        type=Path,
+        default=None,
+        help="folder that platform source paths (e.g. data/raw/...) are relative to; "
+        "default: the current folder",
+    )
     args = parser.parse_args(argv)
 
     platforms = args.platform or available_platforms(args.config_dir)
     pipeline = default_pipeline(DataPaths(args.data))
     for platform in platforms:
-        mapping, ingest = ingest_platform(platform, pipeline=pipeline, config_dir=args.config_dir)
+        mapping, ingest = ingest_platform(
+            platform, pipeline=pipeline, config_dir=args.config_dir, base_dir=args.base_dir
+        )
         print(mapping.summary())
         print(ingest.summary())
         print()
