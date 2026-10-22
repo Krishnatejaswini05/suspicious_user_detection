@@ -1,5 +1,6 @@
 # Hugging Face Space: builds the demo from the public GitHub repository.
-# To pick up new commits, use "Factory rebuild" in the Space's settings.
+# REF is a branch or a commit. CI pins it to each tested commit on main (deploy.py);
+# without CI, use "Factory rebuild" in the Space's settings to pick up new commits.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -16,7 +17,7 @@ RUN apt-get update \
 RUN useradd --create-home --uid 1000 app
 USER app
 WORKDIR /home/app
-RUN git clone --depth 1 --branch "$REF" "$REPO" riskdetect
+RUN git clone --filter=blob:none "$REPO" riskdetect && git -C riskdetect checkout "$REF"
 WORKDIR /home/app/riskdetect
 RUN pip install --user . && sh deploy/build_demo_data.sh
 ENV PATH="/home/app/.local/bin:$PATH"
