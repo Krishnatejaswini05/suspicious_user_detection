@@ -69,18 +69,36 @@ rules:
         - {feature: posts_24h, op: ">=", value: 5}
         # Compared with this user's OWN past, not with a fixed level: on real Q&A sites
         # experts always link to sources, so "many links" alone flagged trusted members.
-        # More links only counts when they go to sites the user never used before: a
-        # maintainer telling many threads "this moved, see <docs page>" is not a thief.
+        # More links only counts when they push one site the user never used before: a
+        # maintainer telling many threads "this moved, see <docs page>" is not a thief,
+        # and neither is a keen sharer posting a different new site each time.
         - any:
             - {feature: duplicate_ratio_change_24h, op: ">=", value: 0.5}
             - all:
                 - {feature: link_ratio_change_24h, op: ">=", value: 0.5}
-                - {feature: new_domain_link_share_24h, op: ">=", value: 0.5}
+                - {feature: new_site_push_share_24h, op: ">=", value: 0.5}
     reason: >-
       Activity is {rate_vs_baseline:.1f}x this {account_age_days:.0f}-day-old account's usual level,
       and compared with its own past, links are up {link_ratio_change_24h:+.0%}
-      ({new_domain_link_share_24h:.0%} to sites it never linked before) and repeated posts
+      ({new_site_push_share_24h:.0%} to one site it never linked before) and repeated posts
       up {duplicate_ratio_change_24h:+.0%}
+
+  - id: R009_single_site_self_promotion
+    description: Posting little but links to one website, without ever joining in.
+    category: spam
+    score_floor: 0.6
+    # Seen on real Reddit data: accounts posting hundreds of links to their own site, each
+    # to a different article (so never copies, and R003 misses them), and almost never
+    # replying to anyone. Experts who link a lot also reply, so they are not caught.
+    when:
+      all:
+        - {feature: posts_7d, op: ">=", value: 10}
+        - {feature: link_ratio_7d, op: ">=", value: 0.9}
+        - {feature: top_domain_share_7d, op: ">=", value: 0.9}
+        - {feature: reply_share_7d, op: "<=", value: 0.1}
+    reason: >-
+      {posts_7d:.0f} posts this week, {link_ratio_7d:.0%} with links and {top_domain_share_7d:.0%}
+      of links to the same website, while only {reply_share_7d:.0%} are replies to others
 
   - id: R008_known_scam_site
     description: Linking to a site on the blocklist of known scam or malware sites.

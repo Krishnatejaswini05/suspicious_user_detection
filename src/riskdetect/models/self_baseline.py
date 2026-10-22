@@ -10,8 +10,9 @@ accounts get no signal at all from this detector, ever.
 The change score multiplies two parts, so both must be present:
 - *what* they post changed: links or repeats up sharply versus their own past, by at
   least a few posts (a ratio over two or three posts is not evidence). Extra links
-  count only as far as they go to sites the user never linked before: a maintainer
-  pointing many threads at the usual documentation is not a thief pushing a new site;
+  count only as far as they push one site the user never linked before: a maintainer
+  pointing many threads at the usual documentation, or a keen sharer posting a different
+  new site each time, is not a thief pushing their site;
 - *how* they post changed: much more activity than usual. Activity at hours never
   used before supports this at half weight only: people with one or two short
   sessions a day often drift to a new hour, so on its own it means little.
@@ -46,7 +47,7 @@ def change_score(row: Mapping[str, Any]) -> float | None:
         return None
 
     content_shift = 0.0
-    new_sites = _get(row, "new_domain_link_share_24h") or 0.0  # unknown never adds
+    new_sites = _get(row, "new_site_push_share_24h") or 0.0  # unknown never adds
     for recent, before, weight in (
         ("link_ratio_24h", "link_ratio_before", new_sites),
         ("duplicate_ratio_24h", "duplicate_ratio_before", 1.0),
@@ -87,9 +88,9 @@ class SelfBaselineAnomaly:
             now, then = _get(row, recent), _get(row, before)
             if now is not None and then is not None and now - then >= 0.3:
                 parts.append(f"{label} {now:.0%} in the last day vs {then:.0%} usually")
-        new_sites = _get(row, "new_domain_link_share_24h")
+        new_sites = _get(row, "new_site_push_share_24h")
         if new_sites:
-            parts.append(f"{new_sites:.0%} of recent links to sites never linked before")
+            parts.append(f"{new_sites:.0%} of recent links push one site never linked before")
         rate = _get(row, "rate_vs_baseline")
         if rate is not None and rate >= 2:
             parts.append(f"{rate:.1f}x the usual activity")

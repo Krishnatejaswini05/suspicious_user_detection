@@ -159,8 +159,42 @@ What the first real run showed (dump of 2024-12-31, about 33,000 events):
 - Those trusted members are now simulated too (`expert_linker`, `maintainer`). The
   maintainer exposed one more gap: a day of "this page moved, see <docs>" replies still
   looked like a stolen account. Extra links now count only when they go to sites the user
-  never linked before (`new_domain_link_share_24h`), in R004 and in the self-baseline
+  never linked before (`new_site_push_share_24h`), in R004 and in the self-baseline
   model. On the real site, the soft WATCH signals dropped from 35 users to 27.
+
+## Real data: Reddit
+
+[configs/platforms/reddit.yaml](configs/platforms/reddit.yaml) reads Reddit posts and
+comments from the Arctic Shift archive (Hugging Face `open-index/arctic`, monthly Parquet
+shards). Reddit content is subject to Reddit's terms; keep it local.
+
+```bash
+# 1. download comments_*.parquet and submissions_*.parquet shards into data/raw/reddit/download/
+# 2. merge them into one export (DuckDB only)
+python -I scripts/reddit_to_parquet.py data/raw/reddit/download data/raw/reddit
+# 3. the usual pipeline
+python -m riskdetect.ingestion --platform reddit
+python -m riskdetect.features --platform reddit --days 62
+python -m riskdetect.models
+python -m riskdetect.scoring --platform reddit --all-snapshots
+```
+
+What the first run showed (November-December 2008: 1.5 million posts and comments from
+87,000 users):
+
+- All events loaded with no rejections and no code changes.
+- The archive has no spam labels. The closest hint is Reddit's old guideline against
+  self-promotion: accounts posting links to one website and almost never joining in.
+- The first scoring caught copy-paste spam but missed most of these self-promoters: each
+  post links to a different article, so they never repeat themselves. New rule R009
+  (single-site self-promotion) uses a new feature, `reply_share_7d`.
+- Reading flagged users' posts also found false alarms: keen sharers posting a different
+  new website each time looked like stolen accounts. The "new site" feature now counts
+  only links to the *one* new site pushed most (`new_site_push_share_24h`).
+- After both changes, 1,235 users (1.4%) reached REVIEW or HIGH. A random sample of
+  flagged users all promoted a single site. Because R009 resembles the self-promotion
+  hint, the match with that hint (724 of 1,562 accounts) is partly circular; reading the
+  posts is the real check. Low-volume self-promoters (under 10 posts a week) are missed.
 
 ## Evaluate (the report card)
 

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 import yaml
@@ -131,3 +131,29 @@ def test_evaluate_reports_evidence_and_shadow_rules() -> None:
     assert [(h.rule.id, h.active) for h in hits] == [("R900_test", True), ("R901_shadow", False)]
     assert hits[0].evidence == {"duplicate_ratio_7d": 0.9}
     assert evaluate(rules, {"duplicate_ratio_7d": 0.1}) == []
+
+
+class TestSelfPromotion:
+    """R009, from real Reddit data: links to one site, never joining in."""
+
+    PROMOTER: ClassVar[dict[str, float]] = {
+        "posts_7d": 30.0,
+        "link_ratio_7d": 1.0,
+        "top_domain_share_7d": 1.0,
+        "reply_share_7d": 0.0,
+    }
+
+    def fired(self, row: dict[str, Any]) -> list[str]:
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        return [hit.rule.id for hit in evaluate(rules, row)]
+
+    def test_a_one_site_promoter_is_caught(self) -> None:
+        assert "R009_single_site_self_promotion" in self.fired(self.PROMOTER)
+
+    def test_an_expert_who_also_replies_is_not(self) -> None:
+        expert = {**self.PROMOTER, "reply_share_7d": 0.6}
+        assert "R009_single_site_self_promotion" not in self.fired(expert)
+
+    def test_unknown_reply_share_never_triggers(self) -> None:
+        chat = {k: v for k, v in self.PROMOTER.items() if k != "reply_share_7d"}
+        assert "R009_single_site_self_promotion" not in self.fired(chat)

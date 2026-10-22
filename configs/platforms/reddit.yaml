@@ -1,0 +1,31 @@
+# Real data: Reddit, from the Arctic Shift archive (Hugging Face open-index/arctic).
+# Reddit content is subject to Reddit's terms; keep it local (data/ is not in git).
+#
+# Prepare the export first (downloads stay in their own folder; the converter only reads):
+#   python -I scripts/reddit_to_parquet.py data/raw/reddit/download data/raw/reddit
+#
+# The archive has no signup dates, so account age stays unknown: rules that need it
+# (such as R004, sudden change in an established account) cannot fire here.
+platform: reddit
+schema_version: 1
+
+source:
+  format: parquet
+  path: data/raw/reddit/export/
+  timezone: UTC
+
+fields:
+  event_id: id
+  actor_id: user
+  occurred_at: time          # Unix epoch seconds
+  space_id: space            # the subreddit
+  text: text                 # title, body and link; hashed into fingerprints, then discarded
+  urls: text
+  target_id: parent_id       # comments point at the post or comment they answer
+  target_owner_id: parent_owner
+
+event_types:
+  from_field: action
+  values:
+    post: CONTENT_CREATED/post
+    comment: CONTENT_CREATED/reply

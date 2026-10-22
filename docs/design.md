@@ -205,7 +205,14 @@ The simulator now has those two hard negatives: `expert_linker` (always cites so
 has answering sprees) and `maintainer` (has days of "this page moved, see <docs>" replies).
 The maintainer showed that "more links than usual" is not enough to suggest a stolen
 account, so the R004 rule and the self-baseline model count extra links only when they
-go to sites the user never linked before (`new_domain_link_share_24h`).
+push one site the user never linked before (`new_site_push_share_24h`).
+
+**Second real platform: Reddit (2008).** Connected with a YAML file and a small merge
+script, again with no detector changes. Lessons: self-promoters post a different article
+of their own site each time, so "copied posts" rules miss them; what gives them away is
+never joining in (`reply_share_7d`, rule R009). Keen sharers post a different new site
+each time, so "new sites" must mean one new site pushed repeatedly. No real labels exist
+in the archive; checks are by reading flagged users' posts.
 
 ## 10. Milestones
 
@@ -222,4 +229,4 @@ go to sites the user never linked before (`new_domain_link_share_24h`).
 | 9 | Classifier, calibration, combiner | **Done** |
 | 10 | `serving/` (API + CLI) | **Done** |
 | 11 | First real-data adapter (Stack Exchange) | **Done** |
-| 12 | Second real platform; content similarity and graph features; monitoring | Next |
+| 12 | Second real platform (Reddit: done); content similarity and graph features; monitoring | In progress |

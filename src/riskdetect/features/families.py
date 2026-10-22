@@ -128,11 +128,12 @@ def _new_hours_share(s: ActorState, as_of: datetime) -> FeatureValue:
     return sum(n for hour, n in recent.items() if hour not in past_hours) / total
 
 
-def _new_domain_link_share(s: ActorState, as_of: datetime) -> FeatureValue:
-    """Share of recent links going to sites this user never linked to before.
+def _new_site_push_share(s: ActorState, as_of: datetime) -> FeatureValue:
+    """Share of recent links going to the one new site (never linked before) linked most.
 
-    A stolen account pushes the thief's site; an expert keeps citing the same sources.
-    A user with enough past posts but no past links counts every link as new.
+    A stolen account pushes the thief's site, over and over; an expert keeps citing the
+    same sources; a keen link-sharer posts a different new site each time. Only the first
+    is high. A user with enough past posts but no past links counts every site as new.
     """
     past = _past_days(as_of)
     past_content = s.content.daily_totals()
@@ -143,7 +144,7 @@ def _new_domain_link_share(s: ActorState, as_of: datetime) -> FeatureValue:
     total = sum(recent.values())
     if total == 0:
         return None
-    return sum(n for domain, n in recent.items() if domain not in known) / total
+    return max((n for domain, n in recent.items() if domain not in known), default=0) / total
 
 
 def _dormancy_gap_days(s: ActorState, as_of: datetime) -> FeatureValue:
@@ -283,9 +284,9 @@ FEATURES: tuple[Feature, ...] = (
         requires=frozenset({"content", "text"}),
     ),
     Feature(
-        "new_domain_link_share_24h", 1, "change",
-        "Share of recent links going to websites this user never linked to before.",
-        _new_domain_link_share,
+        "new_site_push_share_24h", 1, "change",
+        "Share of recent links going to the one new website (never linked before) linked most.",
+        _new_site_push_share,
         requires=frozenset({"content", "urls"}),
     ),
     Feature(
@@ -315,6 +316,15 @@ FEATURES: tuple[Feature, ...] = (
         "link_ratio_7d", 2, "content", "Share of the last 7 days' posts that contain a link.",
         lambda s, t: _ratio(s.with_link.count(WEEK, t), s.content.count(WEEK, t)),
         requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "reply_share_7d", 1, "content",
+        "Share of the last 7 days' posts and replies that are replies to others (joining in).",
+        lambda s, t: _ratio(
+            s.replies_written.count(WEEK, t),
+            s.posts_written.count(WEEK, t) + s.replies_written.count(WEEK, t),
+        ),
+        requires=frozenset({"content"}),
     ),
     Feature(
         "shortener_ratio_7d", 2, "content",

@@ -49,6 +49,8 @@ class ActorState:
 
     activity: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)  # all but signup
     content: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
+    posts_written: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)  # new threads
+    replies_written: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     duplicates: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     with_link: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     with_shortener: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
@@ -96,6 +98,10 @@ class ActorState:
         content = event.content
         assert content is not None
         self.content.add(moment)
+        if content.kind is ContentKind.POST:
+            self.posts_written.add(moment)
+        elif content.kind is ContentKind.REPLY:
+            self.replies_written.add(moment)
         if self.first_content_at is None or moment < self.first_content_at:
             self.first_content_at = moment
 
@@ -147,6 +153,8 @@ class ActorState:
         for counter in (
             self.activity,
             self.content,
+            self.posts_written,
+            self.replies_written,
             self.duplicates,
             self.with_link,
             self.with_shortener,

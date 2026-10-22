@@ -194,7 +194,7 @@ class TestChangeVersusOwnPast:
                 post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=["x.top"])
             )
         assert features(engine, T0)["link_ratio_change_24h"] is None
-        assert features(engine, T0)["new_domain_link_share_24h"] is None
+        assert features(engine, T0)["new_site_push_share_24h"] is None
 
     def test_links_to_sites_never_used_before(
         self, engine: FeatureEngine, make_event: EventFactory
@@ -204,7 +204,16 @@ class TestChangeVersusOwnPast:
         domains = ["github.com", "x.top", "x.top", "x.top"]
         for minute, domain in enumerate(domains):
             engine.apply(post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=[domain]))
-        assert features(engine, T0)["new_domain_link_share_24h"] == pytest.approx(3 / 4)
+        assert features(engine, T0)["new_site_push_share_24h"] == pytest.approx(3 / 4)
+
+    def test_a_different_new_site_each_time_is_not_pushing_one(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for day in range(12, 2, -1):
+            engine.apply(post(make_event, T0 - timedelta(days=day), url_domains=["github.com"]))
+        for minute, domain in enumerate(["a.org", "b.org", "c.org", "d.org"]):
+            engine.apply(post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=[domain]))
+        assert features(engine, T0)["new_site_push_share_24h"] == pytest.approx(1 / 4)
 
     def test_no_past_links_makes_every_link_new(
         self, engine: FeatureEngine, make_event: EventFactory
@@ -212,4 +221,25 @@ class TestChangeVersusOwnPast:
         for day in range(12, 2, -1):
             engine.apply(post(make_event, T0 - timedelta(days=day)))
         engine.apply(post(make_event, T0 - timedelta(minutes=1), url_domains=["x.top"]))
-        assert features(engine, T0)["new_domain_link_share_24h"] == 1.0
+        assert features(engine, T0)["new_site_push_share_24h"] == 1.0
+
+
+class TestJoiningIn:
+    def test_reply_share_counts_replies_against_new_threads(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for minute in range(3):
+            engine.apply(post(make_event, T0 - timedelta(minutes=minute + 1)))
+        engine.apply(make_event(occurred_at=T0 - timedelta(minutes=10), content={"kind": "reply"}))
+        assert features(engine, T0)["reply_share_7d"] == pytest.approx(1 / 4)
+
+    def test_chat_messages_are_neither(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for minute in range(5):
+            engine.apply(
+                make_event(
+                    occurred_at=T0 - timedelta(minutes=minute + 1), content={"kind": "message"}
+                )
+            )
+        assert features(engine, T0)["reply_share_7d"] is None
