@@ -74,6 +74,7 @@ class ServiceConfig:
     scoring_path: Path = DEFAULT_SCORING_PATH
     blocked_domains_path: Path = DEFAULT_BLOCKED_DOMAINS_PATH
     policy: RescorePolicy = field(default_factory=RescorePolicy)
+    platforms: tuple[str, ...] | None = None  # only these platforms; None = every config file
 
 
 def result_to_api(result: RiskResult) -> dict[str, Any]:
@@ -122,6 +123,11 @@ class DetectorService:
         features = ParquetFeatureStore(paths.features)
 
         names = available_platforms(self.config.config_dir)
+        if self.config.platforms is not None:
+            unknown = set(self.config.platforms) - set(names)
+            if unknown:
+                raise ValueError(f"unknown platforms {sorted(unknown)}; known: {names}")
+            names = [name for name in names if name in self.config.platforms]
         self.adapters: dict[str, PlatformAdapter] = {
             name: load_adapter(name, config_dir=self.config.config_dir) for name in names
         }
@@ -209,13 +215,19 @@ class DetectorService:
         return result_to_api(result)
 
     def history(self, platform: str, actor_id: str) -> dict[str, Any]:
+        """A user's scores over time: live scores, or else the daily batch scores."""
         self._adapter(platform)
         rows = self.scores.read_history(platform, actor_id=actor_id)
+        source = "live"
+        if not rows:
+            rows = self.scores.read_actor(platform, actor_id)
+            source = "daily"
         if not rows:
             raise NotFound(f"no scores recorded for {actor_id!r} on {platform!r}")
         return {
             "platform": platform,
             "actor_id": actor_id,
+            "source": source,
             "scores": [
                 {
                     "as_of": row["as_of"].isoformat(),
@@ -311,6 +323,7 @@ class DetectorService:
             "status": "ok",
             "rules_version": self.scorer.rules.version,
             "scoring_version": self.scorer.config.version,
+            "tiers": self.scorer.config.tiers.model_dump(),
             "models": [model.name for model in self.scorer.models],
             "platforms": sorted(self.adapters),
         }

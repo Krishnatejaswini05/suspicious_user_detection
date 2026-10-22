@@ -5,6 +5,7 @@ import threading
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -232,3 +233,65 @@ def burst_after_restart() -> list[dict[str, Any]]:
             }
         )
     return rows
+
+
+class TestDashboard:
+    def fetch(self, url: str) -> tuple[int, str, dict[str, str]]:
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                return response.status, response.read().decode(), dict(response.headers)
+        except urllib.error.HTTPError as error:
+            return error.code, error.read().decode(), dict(error.headers)
+
+    def test_pages_are_served_without_the_key(self, server: str) -> None:
+        status, page, headers = self.fetch(f"{server}/")
+        assert status == 200 and "<title>Risk Review</title>" in page
+        assert headers["Content-Type"].startswith("text/html")
+        assert "script-src 'self'" in headers["Content-Security-Policy"]
+        for name, kind in (("app.js", "text/javascript"), ("style.css", "text/css")):
+            status, _, headers = self.fetch(f"{server}/web/{name}")
+            assert status == 200 and headers["Content-Type"].startswith(kind)
+
+    def test_only_the_dashboard_files_are_served(self, server: str) -> None:
+        for path in ("/web/../service.py", "/web/index.html", "/web/secret.txt"):
+            assert self.fetch(f"{server}{path}")[0] in (401, 404)
+
+    def test_data_still_needs_the_key(self, server: str) -> None:
+        assert self.fetch(f"{server}/review-queue")[0] == 401
+
+
+def test_health_reports_tier_thresholds(service: DetectorService) -> None:
+    tiers = service.health()["tiers"]
+    assert tiers["watch_from"] < tiers["review_from"] < tiers["high_from"]
+
+
+def test_history_falls_back_to_daily_scores(service: DetectorService) -> None:
+    rows = [
+        {
+            "platform": FORUM,
+            "actor_id": "daily-only",
+            "as_of": TINY.start + timedelta(days=day),
+            "score": 0.1 * day,
+            "tier": "LOW",
+            "reasons": [],
+        }
+        for day in (2, 1)
+    ]
+    service.scores.write(FORUM, rows)
+    history = service.history(FORUM, "daily-only")
+    assert history["source"] == "daily"
+    assert [round(s["score"], 1) for s in history["scores"]] == [0.1, 0.2]  # oldest first
+
+
+def test_serving_only_some_platforms(data_root: Path) -> None:
+    config = ServiceConfig(
+        data_root=data_root,
+        config_dir=CONFIGS / "platforms",
+        rules_path=CONFIGS / "rules.yaml",
+        scoring_path=CONFIGS / "scoring.yaml",
+        blocked_domains_path=CONFIGS / "lists" / "blocked_domains.txt",
+        platforms=("synthetic_chat",),
+    )
+    assert DetectorService(config).health()["platforms"] == ["synthetic_chat"]
+    with pytest.raises(ValueError, match="unknown platforms"):
+        DetectorService(replace(config, platforms=("nowhere",)), warm_up=False)

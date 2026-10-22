@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Risk Review</title>
+  <link rel="stylesheet" href="/web/style.css">
+  <script src="/web/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Risk Review</h1>
+      <span id="health" class="health" role="status">Connecting…</span>
+    </div>
+    <div class="controls">
+      <label class="field">
+        <span>Platform</span>
+        <select id="platform"><option value="">All platforms</option></select>
+      </label>
+      <form id="lookup" class="lookup" autocomplete="off">
+        <label class="field">
+          <span>Look up a user</span>
+          <input id="lookup-id" type="search" placeholder="user id" required>
+        </label>
+        <button type="submit">Find</button>
+      </form>
+      <button id="key-button" type="button" class="ghost">API key</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="queue" aria-labelledby="queue-title">
+      <div class="queue-head">
+        <h2 id="queue-title">Waiting for review</h2>
+        <span id="queue-count" class="muted"></span>
+      </div>
+      <p class="muted small">Users at REVIEW or HIGH not yet decided, most urgent first.</p>
+      <ol id="queue-list" class="queue-list"></ol>
+      <p id="queue-empty" class="empty" hidden>Nothing waiting. Every flagged user has a decision.</p>
+    </section>
+
+    <section id="detail" class="detail" aria-live="polite">
+      <div id="detail-empty" class="empty big">
+        Pick a user from the list, or look one up, to see why they were flagged.
+      </div>
+
+      <article id="detail-body" hidden>
+        <div class="detail-head">
+          <div>
+            <p id="d-platform" class="muted small"></p>
+            <h2 id="d-actor" class="actor"></h2>
+          </div>
+          <div class="score-block">
+            <span id="d-score" class="score"></span>
+            <span id="d-tier" class="tier"></span>
+            <span id="d-confidence" class="muted small"></span>
+          </div>
+        </div>
+
+        <section class="card">
+          <h3>Why</h3>
+          <ul id="d-reasons" class="reasons"></ul>
+          <p class="muted small">Scored as of <span id="d-asof"></span>.
+            Suggested: <span id="d-actions"></span></p>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h3>Risk over time</h3>
+            <button id="toggle-table" type="button" class="ghost small-btn" aria-pressed="false">Show as table</button>
+          </div>
+          <div id="chart" class="chart" role="img" aria-label="Risk score over time"></div>
+          <p id="chart-note" class="muted small"></p>
+          <div id="history-table-wrap" class="table-wrap" hidden>
+            <table>
+              <thead><tr><th scope="col">Date</th><th scope="col">Score</th><th scope="col">Tier</th></tr></thead>
+              <tbody id="history-table"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Your decision</h3>
+          <p class="muted small">Saved as a label: it takes the user out of the queue and can train the model later.</p>
+          <div class="decisions" id="decisions">
+            <button type="button" data-decision="spam" class="danger">Spam</button>
+            <button type="button" data-decision="bot" class="danger">Bot</button>
+            <button type="button" data-decision="scam" class="danger">Scam</button>
+            <button type="button" data-decision="hijacked" class="danger">Hijacked</button>
+            <button type="button" data-decision="coordinated" class="danger">Coordinated</button>
+            <button type="button" data-decision="clean" class="safe">Not abusive</button>
+          </div>
+          <div class="decision-extra">
+            <label class="field">
+              <span>Your name</span>
+              <input id="reviewer" type="text" maxlength="80" placeholder="optional">
+            </label>
+            <label class="field grow">
+              <span>Note</span>
+              <input id="note" type="text" maxlength="1000" placeholder="optional, e.g. what you checked">
+            </label>
+          </div>
+        </section>
+      </article>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="tooltip" class="tooltip" hidden></div>
+
+  <dialog id="key-dialog">
+    <form method="dialog" id="key-form">
+      <h3>API key</h3>
+      <p class="muted small">Needed only if the server was started with RISKDETECT_API_KEY.
+        Kept in this browser tab only.</p>
+      <input id="key-input" type="password" autocomplete="off">
+      <div class="dialog-actions">
+        <button value="cancel" type="submit" class="ghost">Cancel</button>
+        <button value="save" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

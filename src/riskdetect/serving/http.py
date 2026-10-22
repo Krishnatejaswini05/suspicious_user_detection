@@ -8,7 +8,13 @@
     GET  /platforms
     GET  /health
 
-If an API key is configured, every request must send it in the ``X-API-Key`` header.
+    GET  /                                         the reviewer dashboard (web/index.html)
+    GET  /web/{file}                               its scripts and styles
+
+If an API key is configured, every API request must send it in the ``X-API-Key``
+header. The dashboard files hold no data, so they are served without it; the page
+asks for the key and sends it with its own API calls.
+
 The built-in server needs no extra libraries; a framework such as FastAPI could wrap
 the same DetectorService later.
 """
@@ -20,12 +26,20 @@ import sys
 from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 from riskdetect.serving.service import BadRequest, DetectorService, NotFound, ServiceError
 
 MAX_BODY_BYTES = 5 * 1024 * 1024
+WEB_DIR = Path(__file__).with_name("web")
+# The dashboard's files, by URL path; nothing else on disk is ever served.
+_WEB_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/web/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/web/style.css": ("style.css", "text/css; charset=utf-8"),
+}
 _ACTOR = re.compile(r"^/actors/(?P<platform>[^/]+)/(?P<actor>[^/]+)/(?P<what>risk|history|review)$")
 
 Response = tuple[int, dict[str, Any]]
@@ -52,6 +66,10 @@ class ApiHandler(BaseHTTPRequestHandler):
     server_version = "riskdetect"
 
     def do_GET(self) -> None:
+        web = _WEB_FILES.get(urlparse(self.path).path)
+        if web is not None:
+            self._send_file(*web)
+            return
         self._handle(self._get)
 
     def do_POST(self) -> None:
@@ -115,6 +133,25 @@ class ApiHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _send_file(self, name: str, content_type: str) -> None:
+        try:
+            data = (WEB_DIR / name).read_bytes()
+        except OSError:
+            self.log_error("dashboard file missing: %s", name)
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'",
+        )
         self.end_headers()
         self.wfile.write(data)
 

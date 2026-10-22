@@ -53,6 +53,22 @@ class ParquetScoreStore:
         path = self.path(platform, name)
         return read_all(path) if path.exists() else []
 
+    def read_actor(
+        self, platform: str, actor_id: str, name: str = "scores"
+    ) -> list[dict[str, Any]]:
+        """One user's rows from a batch scoring run, oldest first (without reading the rest)."""
+        path = self.path(platform, name)
+        if not path.exists():
+            return []
+        rows = read_parquet(
+            path.as_posix(),
+            where="actor_id = ?",
+            params=[actor_id],
+            order_by="as_of",
+            columns=list(SCORE_SCHEMA),
+        )
+        return list(rows)
+
     # -- live score history ----------------------------------------------------
 
     @property
