@@ -137,6 +137,27 @@ Uses Python's built-in HTTP server (no extra libraries). Set `RISKDETECT_API_KEY
 an `X-API-Key` header; it refuses to listen beyond this computer without one. All logic is in
 `DetectorService`, so another web framework can wrap it unchanged.
 
+## Public demo (free hosting)
+
+The `Dockerfile` builds a public demo: simulated users only (no real people), the
+whole pipeline run at build time, and the dashboard served in demo mode (`--demo`: no
+API key needed, sending events switched off, decisions kept only until restart).
+
+```bash
+docker build -t riskdetect-demo .
+docker run -p 7860:7860 riskdetect-demo     # http://localhost:7860
+```
+
+On **Hugging Face Spaces** (free):
+
+1. Create a Space: SDK **Docker**, template **Blank**, hardware **CPU basic** (free).
+2. Upload the two files from [deploy/huggingface/](deploy/huggingface/) (`Dockerfile` and
+   `README.md`) to the Space. The Dockerfile downloads this repository from GitHub.
+3. Wait for the build (a few minutes). The Space sleeps when unused and wakes on the
+   next visit; use "Factory rebuild" to pick up new commits.
+
+Never publish real platform data this way: the dashboard names users as risky.
+
 ## Real data: a Stack Exchange site
 
 Any Stack Exchange site from the public data dump can be connected with a YAML file

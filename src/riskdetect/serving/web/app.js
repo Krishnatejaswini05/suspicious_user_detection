@@ -98,7 +98,9 @@ async function loadStatus() {
   try {
     const status = await api("/health");
     if (status.tiers) state.tiers = status.tiers;
-    health.textContent = `Running · ${status.models.length} models`;
+    health.textContent = status.demo
+      ? "Demo · simulated users, decisions reset on restart"
+      : `Running · ${status.models.length} models`;
     health.className = "health ok";
     const { platforms } = await api("/platforms");
     const select = $("platform");

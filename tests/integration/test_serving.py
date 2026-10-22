@@ -295,3 +295,28 @@ def test_serving_only_some_platforms(data_root: Path) -> None:
     assert DetectorService(config).health()["platforms"] == ["synthetic_chat"]
     with pytest.raises(ValueError, match="unknown platforms"):
         DetectorService(replace(config, platforms=("nowhere",)), warm_up=False)
+
+
+def test_demo_mode_switches_off_sending_events(
+    service: DetectorService, tiny_result: SimulationResult
+) -> None:
+    api = ApiServer(("127.0.0.1", 0), service, quiet=True, demo=True)
+    thread = threading.Thread(target=api.serve_forever, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{api.server_address[1]}"
+    try:
+        status, body = call(f"{url}/events", {"platform": FORUM, "records": burst(tiny_result)})
+        assert status == 403 and "demo" in body["error"]
+        status, health = call(f"{url}/health", key=None)
+        assert status == 200 and health["demo"] is True
+        assert call(f"{url}/review-queue", key=None)[0] == 200
+    finally:
+        api.shutdown()
+        api.server_close()
+
+
+def test_public_listening_needs_a_key_unless_demo(monkeypatch: pytest.MonkeyPatch) -> None:
+    from riskdetect.serving.__main__ import main as serving_main
+
+    monkeypatch.delenv("RISKDETECT_API_KEY", raising=False)
+    assert serving_main(["--host", "0.0.0.0"]) == 2

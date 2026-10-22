@@ -11,6 +11,9 @@
     GET  /                                         the reviewer dashboard (web/index.html)
     GET  /web/{file}                               its scripts and styles
 
+In demo mode (a public showcase on synthetic data) ``POST /events`` is switched off,
+so visitors can look and record decisions but cannot send data in.
+
 If an API key is configured, every API request must send it in the ``X-API-Key``
 header. The dashboard files hold no data, so they are served without it; the page
 asks for the key and sends it with its own API calls.
@@ -54,11 +57,13 @@ class ApiServer(ThreadingHTTPServer):
         service: DetectorService,
         api_key: str | None = None,
         quiet: bool = False,
+        demo: bool = False,
     ) -> None:
         super().__init__(address, ApiHandler)
         self.service = service
         self.api_key = api_key
         self.quiet = quiet
+        self.demo = demo
 
 
 class ApiHandler(BaseHTTPRequestHandler):
@@ -81,7 +86,7 @@ class ApiHandler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         service = self.server.service
         if url.path == "/health":
-            return 200, service.health()
+            return 200, {**service.health(), "demo": self.server.demo}
         if url.path == "/platforms":
             return 200, service.platforms()
         if url.path == "/review-queue":
@@ -104,6 +109,8 @@ class ApiHandler(BaseHTTPRequestHandler):
         body = self._json_body()
         service = self.server.service
         if url.path == "/events":
+            if self.server.demo:
+                raise _Forbidden("sending events is switched off in this demo")
             if "platform" not in body or "records" not in body:
                 raise BadRequest("body needs 'platform' and 'records'")
             return 200, service.ingest(str(body["platform"]), body["records"])
@@ -186,6 +193,10 @@ class ApiHandler(BaseHTTPRequestHandler):
 
 class _Unauthorized(ServiceError):
     status = HTTPStatus.UNAUTHORIZED
+
+
+class _Forbidden(ServiceError):
+    status = HTTPStatus.FORBIDDEN
 
 
 class _TooLarge(ServiceError):
