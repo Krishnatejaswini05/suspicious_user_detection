@@ -26,10 +26,12 @@ rules:
       all:
         - {feature: posts_1h_pct, op: ">=", value: 99}
         - {feature: posts_1h, op: ">=", value: 5}
-        - {feature: duplicate_ratio_24h, op: ">=", value: 0.8}
+        # The burst itself, not the whole day: a stolen account's first burst must not be
+        # diluted by the owner's normal posts from earlier that day (scenario library).
+        - {feature: duplicate_ratio_1h, op: ">=", value: 0.8}
     reason: >-
       Posted {posts_1h:.0f} times in the last hour (percentile {posts_1h_pct:.1f} on this platform),
-      and {duplicate_ratio_24h:.0%} of the last day's posts are near-identical
+      and {duplicate_ratio_1h:.0%} of them are near-identical
 
   - id: R002_machine_like_posting
     description: Posting at near-fixed intervals around the clock, at high volume.

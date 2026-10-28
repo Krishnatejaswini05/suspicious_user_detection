@@ -227,6 +227,35 @@ What the first run showed (November-December 2008: 1.5 million posts and comment
   hint, the match with that hint (724 of 1,562 accounts) is partly circular; reading the
   posts is the real check. Low-volume self-promoters (under 10 posts a week) are missed.
 
+## Scenario library (situations the detector must handle)
+
+```bash
+python -m riskdetect.scenarios                  # all scenarios -> data/reports/scenarios.md
+python -m riskdetect.scenarios --only spam_ring
+```
+
+[src/riskdetect/scenarios/library.py](src/riskdetect/scenarios/library.py) lists 23
+situations, each a small simulated world (a crowd plus the users under test) fed through
+the same live scoring the server uses, with an expected outcome:
+
+- **Innocent but unusual** (must never reach REVIEW): a big news day, a holiday binge, a
+  power user, a keen link-sharer, an expert citing sources, a moderator's notices, a
+  traveller changing time zones, a brand-new active member, a member returning after
+  weeks away, a controversial member who is reported but widely answered.
+- **Abuse** (must reach REVIEW within a stated time): a copy-paste bot, a known scam link,
+  a sudden and a gradual account takeover, a bot disguised as a human, a slow spammer, a
+  self-promoter, a comment spammer, a URL-shortener spammer, a spam ring, a reported spammer.
+
+Situations the detector does not handle yet are marked as **known gaps** with the
+reason (today: a gradual takeover, a disguised bot, a comment spammer, a spam ring, and
+a moderator who is not on the allowlist). They run as expected failures in the test
+suite, which notices when one starts passing. The library already found one real gap,
+now fixed: a stolen account's first burst was diluted by the owner's normal posts from
+earlier that day, so R001 now measures copying within the hour (`duplicate_ratio_1h`).
+
+The learned classifier is left out here on purpose: it is trained on the simulator, so it
+would be tested against itself.
+
 ## Evaluate (the report card)
 
 ```bash

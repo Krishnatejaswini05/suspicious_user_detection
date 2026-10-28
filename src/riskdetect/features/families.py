@@ -301,6 +301,12 @@ FEATURES: tuple[Feature, ...] = (
     ),
     # content
     Feature(
+        "duplicate_ratio_1h", 1, "content",
+        "Share of the last hour's posts that copy (or nearly copy) the actor's recent posts.",
+        lambda s, t: _ratio(s.duplicates.count(HOUR, t), s.content.count(HOUR, t)),
+        requires=frozenset({"content", "text"}),
+    ),
+    Feature(
         "duplicate_ratio_24h", 2, "content",
         "Share of the last 24h's posts that copy (or nearly copy) the actor's recent posts.",
         lambda s, t: _ratio(s.duplicates.count(DAY, t), s.content.count(DAY, t)),
