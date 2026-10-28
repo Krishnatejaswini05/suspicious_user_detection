@@ -322,7 +322,11 @@ SCENARIOS: list[Scenario] = [
         "A stolen account eased into spam, a little more each day.",
         _gradual_takeover,
         known_gap="R004 and the self-baseline model look for a sudden jump (about 5x the usual "
-        "activity); spam eased in over a week stays under every threshold.",
+        "activity). A rule without the jump (links up sharply, mostly to one site new this "
+        "week) caught this case, but on real data it also flagged a trusted Stack Exchange "
+        "expert and about 25 ordinary Reddit users, who had simply started linking GitHub or "
+        "YouTube. Telling a thief's site apart needs to know that nobody else links it "
+        "(platform-wide, with Milestone 12).",
     ),
     Scenario(
         "disguised_bot",
@@ -349,8 +353,6 @@ SCENARIOS: list[Scenario] = [
         "abuse",
         "Never starts a thread: replies under others' posts with the same site.",
         _comment_spammer,
-        known_gap="R009 assumes self-promoters do not reply to anyone; spam placed as replies "
-        "under other people's posts escapes it.",
     ),
     Scenario(
         "shortener_spammer",

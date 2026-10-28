@@ -215,6 +215,19 @@ class TestChangeVersusOwnPast:
             engine.apply(post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=[domain]))
         assert features(engine, T0)["new_site_push_share_24h"] == pytest.approx(1 / 4)
 
+    def test_a_site_first_linked_a_few_days_ago_is_still_new(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for day in range(20, 9, -1):
+            engine.apply(post(make_event, T0 - timedelta(days=day), url_domains=["github.com"]))
+        for day in (3, 2):  # the takeover starts slowly...
+            engine.apply(post(make_event, T0 - timedelta(days=day), url_domains=["x.top"]))
+        for minute in range(5):  # ...and the site must not look familiar by now
+            engine.apply(
+                post(make_event, T0 - timedelta(minutes=minute + 1), url_domains=["x.top"])
+            )
+        assert features(engine, T0)["new_site_push_share_24h"] == 1.0
+
     def test_no_past_links_makes_every_link_new(
         self, engine: FeatureEngine, make_event: EventFactory
     ) -> None:

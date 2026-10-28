@@ -21,6 +21,7 @@ _MIN_PAST_POSTS = 5  # a usual ratio needs a few past posts behind it
 # A percentage of fewer posts than this is "unknown": one linked post is not "100% links".
 _MIN_RATIO_POSTS = 3
 _MIN_PAST_ACTIVE_DAYS = 7  # usual hours need about a week of history
+_NEW_SITE_DAYS = 7  # a site first linked within the last week still counts as new
 
 # -- lifecycle -----------------------------------------------------------------
 
@@ -129,17 +130,21 @@ def _new_hours_share(s: ActorState, as_of: datetime) -> FeatureValue:
 
 
 def _new_site_push_share(s: ActorState, as_of: datetime) -> FeatureValue:
-    """Share of recent links going to the one new site (never linked before) linked most.
+    """Share of recent links going to the one new site linked most.
 
     A stolen account pushes the thief's site, over and over; an expert keeps citing the
     same sources; a keen link-sharer posts a different new site each time. Only the first
     is high. A user with enough past posts but no past links counts every site as new.
+
+    "New" means never linked before the last week, so a takeover eased in over several
+    days cannot make its own site look familiar overnight (scenario library).
     """
-    past = _past_days(as_of)
+    known_until = day_index(as_of) - _NEW_SITE_DAYS  # the last day that counts as "before"
+    before = range(known_until - MONTH.days + 1, known_until + 1)
     past_content = s.content.daily_totals()
-    if sum(past_content.get(d, 0) for d in past) < _MIN_PAST_POSTS:
+    if sum(past_content.get(d, 0) for d in before) < _MIN_PAST_POSTS:
         return None  # too little past to know which sites they use
-    known = set(s.domains.totals_between(past.start, past.stop - 1))
+    known = set(s.domains.totals_between(before.start, before.stop - 1))
     recent = s.domains.totals_between(day_index(as_of - DAY), day_index(as_of))
     total = sum(recent.values())
     if total == 0:
@@ -285,7 +290,7 @@ FEATURES: tuple[Feature, ...] = (
     ),
     Feature(
         "new_site_push_share_24h", 1, "change",
-        "Share of recent links going to the one new website (never linked before) linked most.",
+        "Share of recent links going to the one website, new this week, that is linked most.",
         _new_site_push_share,
         requires=frozenset({"content", "urls"}),
     ),

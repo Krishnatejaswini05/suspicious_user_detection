@@ -24,6 +24,8 @@ fields:
   target_id: parent_id       # comments point at the post or comment they answer
   target_owner_id: parent_owner
 
+own_domains: [reddit.com, redd.it]   # links to other subreddits or threads are navigation
+
 event_types:
   from_field: action
   values:

@@ -24,6 +24,8 @@ fields:
   target_id: parent_id       # comments point at the post they comment on
   target_owner_id: parent_owner
 
+own_domains: [stackexchange.com]   # links to other questions on the site are navigation
+
 event_types:
   from_field: action
   values:

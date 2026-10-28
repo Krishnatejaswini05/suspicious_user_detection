@@ -23,6 +23,7 @@ from riskdetect.adapters.readers import RawRecord, read_records
 from riskdetect.adapters.report import MappingReport
 from riskdetect.adapters.transforms import (
     count_mentions,
+    drop_own_domains,
     extract_domains,
     hash_text,
     parse_time,
@@ -181,7 +182,10 @@ class GenericAdapter:
             "simhash": simhash_text(text) if text else None,
             "length": len(text) if text else None,
             "language": language,
-            "url_domains": extract_domains(data.get(fields.urls)) if fields.urls else (),
+            "url_domains": drop_own_domains(
+                extract_domains(data.get(fields.urls)) if fields.urls else (),
+                self.config.own_domains,
+            ),
             "mention_count": count_mentions(text) if text else 0,
         }
 

@@ -247,11 +247,21 @@ the same live scoring the server uses, with an expected outcome:
   self-promoter, a comment spammer, a URL-shortener spammer, a spam ring, a reported spammer.
 
 Situations the detector does not handle yet are marked as **known gaps** with the
-reason (today: a gradual takeover, a disguised bot, a comment spammer, a spam ring, and
-a moderator who is not on the allowlist). They run as expected failures in the test
-suite, which notices when one starts passing. The library already found one real gap,
-now fixed: a stolen account's first burst was diluted by the owner's normal posts from
-earlier that day, so R001 now measures copying within the hour (`duplicate_ratio_1h`).
+reason (today: a gradual takeover, a disguised bot, a spam ring, and a moderator who is
+not on the allowlist). They run as expected failures in the test suite, which notices
+when one starts passing. Gaps closed so far:
+
+- A stolen account's first burst was diluted by the owner's normal posts from earlier
+  that day, so R001 now measures copying within the hour (`duplicate_ratio_1h`).
+- Spam posted only as replies escaped R009, which assumes self-promoters never reply.
+  New rule R010 (reply spam) covers it. Links to the platform's own pages (for example
+  "see r/politics") are navigation, not promotion: a platform file lists them in
+  `own_domains`, and the adapter leaves them out.
+- A takeover eased in over a week made its own site look familiar after a day. A site
+  now counts as new if the user never linked it before the last week. (A rule to catch
+  the gradual takeover itself was tried and dropped: on real data it flagged a trusted
+  Stack Exchange expert and ordinary Reddit users who had started linking GitHub or
+  YouTube. See the known gap.)
 
 The learned classifier is left out here on purpose: it is trained on the simulator, so it
 would be tested against itself.

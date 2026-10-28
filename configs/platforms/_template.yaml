@@ -26,6 +26,9 @@ fields:                         # raw column name for each canonical field
   target_owner_id: parent_author  # optional: who owns the target
   attributes: []                # optional: extra columns to keep as-is. Never list free-text columns.
 
+own_domains: []                 # optional: the platform's own sites, e.g. [reddit.com, redd.it];
+                                # links to them are navigation, not links to the outside world
+
 event_types:
   from_field: action            # the column that says what happened
   values:

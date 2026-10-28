@@ -38,7 +38,7 @@ def write_shards(folder: Path) -> None:
     duckdb.execute(f"""
         copy (select * from (values
             ('c1', 'bob', 'pics', 'Nice cat', 1225500400, 't3_a1'),
-            ('c2', 'alice', 'pics', 'Thanks!', 1225500500, 't1_c1'),
+            ('c2', 'alice', 'pics', 'Thanks! http://reddit.com/r/cats', 1225500500, 't1_c1'),
             ('c3', '[deleted]', 'pics', 'whatever', 1225500600, 't3_a1'),
             ('c4', 'carol', 'pics', 'Reply to a ghost', 1225500700, 't3_a3')
         ) t(id, author, subreddit, body, created_utc, parent_id)) to '{comments}'
@@ -86,3 +86,5 @@ def test_platform_file_reads_the_export_with_no_code(tmp_path: Path) -> None:
     comment = by_id["reddit:comment-c1"]
     assert comment.content is not None and comment.content.kind is ContentKind.REPLY
     assert comment.target is not None and comment.target.owner_actor_id == "alice"
+    navigation = by_id["reddit:comment-c2"].content
+    assert navigation is not None and navigation.url_domains == ()  # reddit.com is own_domains

@@ -132,6 +132,13 @@ def extract_domains(value: object) -> tuple[str, ...]:
     return tuple(domains)
 
 
+def drop_own_domains(domains: tuple[str, ...], own: tuple[str, ...]) -> tuple[str, ...]:
+    """Remove links to the platform's own sites (and their subdomains): that is navigation."""
+    if not own:
+        return domains
+    return tuple(d for d in domains if not any(d == o or d.endswith("." + o) for o in own))
+
+
 def count_mentions(text: str) -> int:
     """Count @mentions, ignoring e-mail addresses."""
     return len(_MENTION_RE.findall(text))

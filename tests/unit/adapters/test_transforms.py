@@ -5,6 +5,7 @@ import pytest
 
 from riskdetect.adapters.transforms import (
     count_mentions,
+    drop_own_domains,
     extract_domains,
     hamming_distance,
     hash_text,
@@ -107,3 +108,9 @@ def test_pseudonymize_is_stable_and_salted() -> None:
     assert pseudonymize_id("S42", "salt") == pseudonymize_id("S42", "salt")
     assert pseudonymize_id("S42", "salt") != pseudonymize_id("S42", "other")
     assert pseudonymize_id("S42", "salt").startswith("p_")
+
+
+def test_own_domains_are_navigation_not_links() -> None:
+    found = ("reddit.com", "old.reddit.com", "notreddit.com", "imgur.com")
+    assert drop_own_domains(found, ("reddit.com",)) == ("notreddit.com", "imgur.com")
+    assert drop_own_domains(found, ()) == found

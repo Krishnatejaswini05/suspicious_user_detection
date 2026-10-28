@@ -157,3 +157,29 @@ class TestSelfPromotion:
     def test_unknown_reply_share_never_triggers(self) -> None:
         chat = {k: v for k, v in self.PROMOTER.items() if k != "reply_share_7d"}
         assert "R009_single_site_self_promotion" not in self.fired(chat)
+
+
+class TestReplySpam:
+    """R010, from the scenario library: replies that keep pushing one website."""
+
+    SPAMMER: ClassVar[dict[str, float]] = {
+        "posts_7d": 40.0,
+        "reply_share_7d": 1.0,
+        "link_ratio_7d": 1.0,
+        "top_domain_share_7d": 1.0,
+    }
+
+    def fired(self, row: dict[str, Any]) -> list[str]:
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        return [hit.rule.id for hit in evaluate(rules, row)]
+
+    def test_reply_spam_is_caught(self) -> None:
+        assert "R010_reply_spam" in self.fired(self.SPAMMER)
+
+    def test_an_expert_citing_several_sources_is_not(self) -> None:
+        expert = {**self.SPAMMER, "top_domain_share_7d": 0.4}
+        assert "R010_reply_spam" not in self.fired(expert)
+
+    def test_chat_platforms_without_replies_never_trigger_it(self) -> None:
+        chat = {k: v for k, v in self.SPAMMER.items() if k != "reply_share_7d"}
+        assert "R010_reply_spam" not in self.fired(chat)

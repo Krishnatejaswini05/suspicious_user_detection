@@ -23,6 +23,7 @@ from riskdetect.schema import (
     ModerationSource,
     TargetType,
     Visibility,
+    normalize_domain,
 )
 
 SourceFormat = Literal["csv", "jsonl", "parquet"]
@@ -159,7 +160,15 @@ class PlatformConfig(_ConfigModel):
     fields: FieldMap
     event_types: EventTypeMap
     privacy: PrivacyConfig = PrivacyConfig()
+    # The platform's own websites. Links to them (and their subdomains) are navigation
+    # inside the platform, such as "see r/politics", not links to the outside world.
+    own_domains: tuple[str, ...] = ()
     overrides: dict[str, dict[str, int | float | str | bool]] = Field(default_factory=dict)
+
+    @field_validator("own_domains")
+    @classmethod
+    def _normalize_own_domains(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        return tuple(normalize_domain(d) for d in value)
 
     @field_validator("schema_version")
     @classmethod

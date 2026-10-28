@@ -102,6 +102,23 @@ rules:
       {posts_7d:.0f} posts this week, {link_ratio_7d:.0%} with links and {top_domain_share_7d:.0%}
       of links to the same website, while only {reply_share_7d:.0%} are replies to others
 
+  - id: R010_reply_spam
+    description: Replies under other people's posts that keep pushing one website.
+    category: spam
+    score_floor: 0.6
+    # Found by the scenario library: R009 assumes self-promoters never reply, so spam
+    # placed only as replies escaped it. Experts who cite sources link to several sites,
+    # and links to the platform's own pages (own_domains) do not count.
+    when:
+      all:
+        - {feature: posts_7d, op: ">=", value: 10}
+        - {feature: reply_share_7d, op: ">=", value: 0.9}
+        - {feature: link_ratio_7d, op: ">=", value: 0.9}
+        - {feature: top_domain_share_7d, op: ">=", value: 0.9}
+    reason: >-
+      {posts_7d:.0f} posts this week, {reply_share_7d:.0%} of them replies to others,
+      {link_ratio_7d:.0%} with links and {top_domain_share_7d:.0%} of links to the same website
+
   - id: R008_known_scam_site
     description: Linking to a site on the blocklist of known scam or malware sites.
     category: scam
