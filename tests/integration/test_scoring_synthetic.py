@@ -37,9 +37,7 @@ def data_root(tiny_result: SimulationResult, tmp_path_factory: pytest.TempPathFa
 @pytest.fixture(scope="module")
 def results(tiny_result: SimulationResult, data_root: Path) -> list[tuple[PersonaName, RiskResult]]:
     """Every user's score at the end of the simulation, with their true persona."""
-    scorer = Scorer(
-        load_rules(CONFIGS / "rules.yaml"), load_scoring_config(CONFIGS / "scoring.yaml")
-    )
+    scorer = Scorer(load_rules(CONFIGS / "rules"), load_scoring_config(CONFIGS / "scoring.yaml"))
     store = ParquetEventStore(DataPaths(data_root).events)
     persona = {(e.label.platform, e.label.actor_id): e.persona for e in tiny_result.answer_key}
     out = []
@@ -88,7 +86,7 @@ def test_command_line(data_root: Path) -> None:
                 "--config-dir",
                 str(CONFIGS / "platforms"),
                 "--rules",
-                str(CONFIGS / "rules.yaml"),
+                str(CONFIGS / "rules"),
                 "--scoring",
                 str(CONFIGS / "scoring.yaml"),
             ]

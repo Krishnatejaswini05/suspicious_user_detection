@@ -46,7 +46,7 @@ def test_report_card(data_root: Path) -> None:
     report = evaluate(
         {p: features.read(p) for p in PLATFORMS},
         truths_from_answer_key(data_root / ANSWER_KEY_PATH),
-        Scorer(load_rules(CONFIGS / "rules.yaml"), load_scoring_config(CONFIGS / "scoring.yaml")),
+        Scorer(load_rules(CONFIGS / "rules"), load_scoring_config(CONFIGS / "scoring.yaml")),
         config,
     )
     assert report.overall.positives > 0
@@ -64,7 +64,7 @@ def test_report_card(data_root: Path) -> None:
 
 def test_command_line_writes_the_report(data_root: Path) -> None:
     args = ["--data", str(data_root), "--config-dir", str(CONFIGS / "platforms")]
-    args += ["--rules", str(CONFIGS / "rules.yaml"), "--scoring", str(CONFIGS / "scoring.yaml")]
+    args += ["--rules", str(CONFIGS / "rules"), "--scoring", str(CONFIGS / "scoring.yaml")]
     args += ["--evaluation", str(CONFIGS / "evaluation.yaml")]
     status = main(args)
     report = (data_root / "reports" / "evaluation.md").read_text(encoding="utf-8")

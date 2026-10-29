@@ -24,6 +24,7 @@ from riskdetect.adapters import (
     available_platforms,
     load_adapter,
     load_platform_config,
+    platform_rule_packs,
 )
 from riskdetect.features import PercentileTable, fields_from_config
 from riskdetect.ingestion import CallbackPublisher, IngestionPipeline
@@ -145,6 +146,11 @@ class DetectorService:
             load_rules(self.config.rules_path),
             load_scoring_config(self.config.scoring_path),
             models=load_models(paths.root / "models"),
+            platform_packs={
+                name: packs
+                for name, packs in platform_rule_packs(self.config.config_dir).items()
+                if name in names
+            },
         )
         self._new_results: list[RiskResult] = []
         self.processor = RealtimeProcessor(

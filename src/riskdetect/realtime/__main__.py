@@ -12,7 +12,12 @@ from collections import Counter
 from datetime import timedelta
 from pathlib import Path
 
-from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms, load_platform_config
+from riskdetect.adapters import (
+    DEFAULT_CONFIG_DIR,
+    available_platforms,
+    load_platform_config,
+    platform_rule_packs,
+)
 from riskdetect.features import PercentileTable, fields_from_config
 from riskdetect.models import load_models
 from riskdetect.realtime.policy import RescorePolicy
@@ -63,7 +68,12 @@ def main(argv: list[str] | None = None) -> int:
     scores = ParquetScoreStore(paths.scores)
     features = ParquetFeatureStore(paths.features)
     models = load_models(paths.root / "models")
-    scorer = Scorer(load_rules(args.rules), load_scoring_config(args.scoring), models=models)
+    scorer = Scorer(
+        load_rules(args.rules),
+        load_scoring_config(args.scoring),
+        models=models,
+        platform_packs=platform_rule_packs(args.config_dir),
+    )
     blocked = load_domain_list(args.blocked_domains)
 
     for platform in args.platform or available_platforms(args.config_dir):

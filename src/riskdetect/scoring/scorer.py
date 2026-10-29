@@ -81,22 +81,34 @@ class Scorer:
         config: ScoringConfig,
         allowlist: Iterable[tuple[str, str]] = (),
         models: Iterable[SignalSource] = (),
+        platform_packs: Mapping[str, Iterable[str]] | None = None,
     ) -> None:
         """``allowlist`` holds (platform, actor_id) pairs, e.g. staff or official bots.
-        ``models`` are extra evidence sources, such as the anomaly detectors."""
+        ``models`` are extra evidence sources, such as the anomaly detectors.
+        ``platform_packs`` says which rule packs apply on which platform; a platform not
+        listed gets every pack."""
         self.rules = rules
         self.config = config
         self.allowlist = frozenset(allowlist)
         self.models = tuple(models)
+        self.platform_packs = {p: frozenset(packs) for p, packs in (platform_packs or {}).items()}
+        if rules.packs:
+            for platform, packs in self.platform_packs.items():
+                unknown = packs - set(rules.packs)
+                if unknown:
+                    raise ValueError(
+                        f"{platform}: unknown rule packs {sorted(unknown)}; "
+                        f"known: {list(rules.packs)}"
+                    )
 
     def with_models(self, models: Iterable[SignalSource]) -> "Scorer":
         """The same scorer with a different set of models (e.g. fitted on a training period)."""
-        return Scorer(self.rules, self.config, self.allowlist, models)
+        return Scorer(self.rules, self.config, self.allowlist, models, self.platform_packs)
 
     def score(self, row: Mapping[str, Any]) -> RiskResult:
         """Score one feature row (platform, actor_id, as_of plus feature values)."""
         platform, actor_id, as_of = row["platform"], row["actor_id"], row["as_of"]
-        hits = evaluate(self.rules, row)
+        hits = evaluate(self.rules, row, self.platform_packs.get(platform))
         signals = [signal for model in self.models for signal in model.signals(row)]
         score, categories = combine([*hits, *signals], self.config.max_weight_score)
 

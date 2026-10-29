@@ -1,0 +1,30 @@
+# Pack: marketplace. Buying and selling (Facebook Marketplace, eBay, OLX): listings far below the usual
+# price. Each strong rule needs two independent signs: sharing a phone number for
+# pickup is normal, and so is selling cheaply when moving house.
+
+version: 1
+
+rules:
+  - id: R013_too_good_to_be_true
+    description: Listings far below the usual price, with off-platform contact or risky payment.
+    category: scam
+    score_floor: 0.75
+    when:
+      all:
+        - {feature: cheap_listings_7d, op: ">=", value: 2}
+        - any:
+            - {feature: offsite_contact_share_7d, op: ">=", value: 0.3}
+            - {feature: risky_payment_share_7d, op: ">=", value: 0.3}
+    reason: >-
+      {cheap_listings_7d:.0f} listings this week at far below the usual price, while asking
+      to continue outside the platform ({offsite_contact_share_7d:.0%} of messages) or to pay
+      in risky ways ({risky_payment_share_7d:.0%})
+
+  - id: R014_cheap_listings
+    description: Several listings far below the usual price (honest clear-outs do this too).
+    category: scam
+    weight: 0.25
+    when:
+      all:
+        - {feature: cheap_listings_7d, op: ">=", value: 3}
+    reason: "{cheap_listings_7d:.0f} listings this week at far below the usual price for their category"

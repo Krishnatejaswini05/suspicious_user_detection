@@ -45,7 +45,7 @@ def make_service(data_root: Path) -> DetectorService:
         ServiceConfig(
             data_root=data_root,
             config_dir=CONFIGS / "platforms",
-            rules_path=CONFIGS / "rules.yaml",
+            rules_path=CONFIGS / "rules",
             scoring_path=CONFIGS / "scoring.yaml",
             blocked_domains_path=CONFIGS / "lists" / "blocked_domains.txt",
         )
@@ -287,7 +287,7 @@ def test_serving_only_some_platforms(data_root: Path) -> None:
     config = ServiceConfig(
         data_root=data_root,
         config_dir=CONFIGS / "platforms",
-        rules_path=CONFIGS / "rules.yaml",
+        rules_path=CONFIGS / "rules",
         scoring_path=CONFIGS / "scoring.yaml",
         blocked_domains_path=CONFIGS / "lists" / "blocked_domains.txt",
         platforms=("synthetic_chat",),

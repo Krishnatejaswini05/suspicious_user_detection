@@ -18,6 +18,8 @@ fields:
   target_id: parent_id
   target_owner_id: parent_author
 
+rule_packs: [common, social]
+
 event_types:
   from_field: kind
   values:

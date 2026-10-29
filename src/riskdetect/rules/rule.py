@@ -1,13 +1,15 @@
 """Rules and the rules file.
 
-Rules are data (configs/rules.yaml), checked when loaded:
+Rules are data, in packs by kind of platform (configs/rules/<pack>.yaml: common, social,
+chat, marketplace). A platform picks its packs in its own file (``rule_packs``). Rules are
+checked when loaded:
 - every feature a rule mentions must exist (no typos silently never firing);
 - a rule may not look at account age alone (being new is never a reason by itself);
 - a rule must either set a score floor or carry a weight.
 """
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -44,6 +46,7 @@ class Rule(BaseModel):
     weight: float | None = Field(default=None, gt=0.0, le=1.0)
     severity: Literal["normal", "critical"] = "normal"
     mode: Literal["active", "shadow"] = "active"
+    pack: str | None = None  # set from the file name when loaded from a folder of packs
 
     @model_validator(mode="after")
     def _check(self) -> "Rule":
@@ -65,11 +68,19 @@ class Rule(BaseModel):
         return max(self.score_floor or 0.0, self.weight or 0.0)
 
 
+class _PackFile(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    version: int = Field(ge=1)
+    rules: list[Rule] = Field(default_factory=list)  # a pack may be empty for now
+
+
 class RuleSet(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     version: int = Field(ge=1)
     rules: list[Rule] = Field(min_length=1)
+    packs: tuple[str, ...] = ()  # the packs loaded, including empty ones
 
     @model_validator(mode="after")
     def _unique_ids(self) -> "RuleSet":
@@ -79,16 +90,45 @@ class RuleSet(BaseModel):
         return self
 
 
-DEFAULT_RULES_PATH = Path("configs/rules.yaml")
+DEFAULT_RULES_PATH = Path("configs/rules")
 
 
 def load_rules(path: Path = DEFAULT_RULES_PATH) -> RuleSet:
+    """Load one rules file, or a folder of rule packs (each file is a pack named after it)."""
+    if path.is_dir():
+        return _load_packs(path)
+    return _validated(RuleSet, _read(path), path)
+
+
+def _load_packs(folder: Path) -> RuleSet:
+    files = sorted(folder.glob("*.yaml"))
+    if not files:
+        raise RulesError(f"No rule packs (*.yaml) in {folder}")
+    rules: list[Rule] = []
+    versions = set()
+    for file in files:
+        pack = _validated(_PackFile, _read(file), file)
+        versions.add(pack.version)
+        rules += [rule.model_copy(update={"pack": file.stem}) for rule in pack.rules]
+    if len(versions) != 1:
+        raise RulesError(f"Rule packs in {folder} have different versions: {sorted(versions)}")
+    data = {"version": versions.pop(), "rules": rules, "packs": tuple(f.stem for f in files)}
+    return _validated(RuleSet, data, folder)
+
+
+def _read(path: Path) -> object:
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
         raise RulesError(f"Rules file not found: {path}") from exc
+
+
+_M = TypeVar("_M", bound=BaseModel)
+
+
+def _validated(model: type[_M], data: object, path: Path) -> _M:
     try:
-        return RuleSet.model_validate(data)
+        return model.model_validate(data)
     except ValidationError as exc:
         problems = "\n".join(
             f"  {'.'.join(str(p) for p in err['loc']) or '<root>'}: {err['msg']}"

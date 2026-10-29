@@ -50,7 +50,7 @@ def live(
 
     results: list[RiskResult] = []
     processor = RealtimeProcessor(
-        Scorer(load_rules(CONFIGS / "rules.yaml"), load_scoring_config(CONFIGS / "scoring.yaml")),
+        Scorer(load_rules(CONFIGS / "rules"), load_scoring_config(CONFIGS / "scoring.yaml")),
         percentiles={PLATFORM: fit_percentiles(PLATFORM, rows)},
         available_fields={PLATFORM: fields},
         blocked_domains=load_domain_list(CONFIGS / "lists" / "blocked_domains.txt"),
@@ -110,7 +110,7 @@ def test_command_line_replays_and_records_history(live: tuple[Path, list[RiskRes
     root, _ = live
     data = root / "data"
     args = ["--data", str(data), "--config-dir", str(CONFIGS / "platforms"), "--platform", PLATFORM]
-    args += ["--rules", str(CONFIGS / "rules.yaml"), "--scoring", str(CONFIGS / "scoring.yaml")]
+    args += ["--rules", str(CONFIGS / "rules"), "--scoring", str(CONFIGS / "scoring.yaml")]
     args += ["--blocked-domains", str(CONFIGS / "lists" / "blocked_domains.txt"), "--quiet"]
     args += ["--warm-up-days", "2"]  # the tiny world is only a week long
     assert main(args) == 0

@@ -14,6 +14,7 @@ from riskdetect.adapters.registry import (
     DEFAULT_CONFIG_DIR,
     available_platforms,
     load_adapter,
+    platform_rule_packs,
     register_custom_adapter,
 )
 from riskdetect.adapters.report import MappingReport
@@ -32,6 +33,7 @@ __all__ = [
     "load_adapter",
     "load_platform_config",
     "parse_platform_config",
+    "platform_rule_packs",
     "read_records",
     "register_custom_adapter",
     "run_adapter",

@@ -110,7 +110,7 @@ class TestRuleValidation:
 
 class TestRulesFile:
     def test_project_rules_file_is_valid(self) -> None:
-        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules")
         assert len(rules.rules) >= 5
 
     def test_errors_name_the_problem(self, tmp_path: Path) -> None:
@@ -144,7 +144,7 @@ class TestSelfPromotion:
     }
 
     def fired(self, row: dict[str, Any]) -> list[str]:
-        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules")
         return [hit.rule.id for hit in evaluate(rules, row)]
 
     def test_a_one_site_promoter_is_caught(self) -> None:
@@ -170,7 +170,7 @@ class TestReplySpam:
     }
 
     def fired(self, row: dict[str, Any]) -> list[str]:
-        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules")
         return [hit.rule.id for hit in evaluate(rules, row)]
 
     def test_reply_spam_is_caught(self) -> None:
@@ -187,7 +187,7 @@ class TestReplySpam:
 
 class TestMarketplaceRules:
     def fired(self, row: dict[str, Any]) -> list[str]:
-        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules")
         return [hit.rule.id for hit in evaluate(rules, row)]
 
     def test_offsite_contact_with_risky_payment(self) -> None:
@@ -203,7 +203,7 @@ class TestMarketplaceRules:
         assert "R013_too_good_to_be_true" in self.fired(row)
 
     def test_cheap_alone_is_only_a_weak_sign(self) -> None:
-        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules")
         hits = evaluate(rules, {"cheap_listings_7d": 10.0, "offsite_contact_share_7d": 0.0})
         assert [h.rule.id for h in hits] == ["R014_cheap_listings"]
         assert hits[0].rule.score_floor is None

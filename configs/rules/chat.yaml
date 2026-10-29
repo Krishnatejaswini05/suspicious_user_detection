@@ -1,0 +1,6 @@
+# Pack: chat. Chat apps with channels and groups (Discord, Telegram). Planned: raids (many new
+# accounts at once) and invite-link floods.
+
+version: 1
+
+rules: []

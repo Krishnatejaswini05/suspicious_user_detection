@@ -164,6 +164,8 @@ class PlatformConfig(_ConfigModel):
     # The platform's own websites. Links to them (and their subdomains) are navigation
     # inside the platform, such as "see r/politics", not links to the outside world.
     own_domains: tuple[str, ...] = ()
+    # Which rule packs apply here (configs/rules/<pack>.yaml); None means every pack.
+    rule_packs: tuple[str, ...] | None = None
     overrides: dict[str, dict[str, int | float | str | bool]] = Field(default_factory=dict)
 
     @field_validator("own_domains")

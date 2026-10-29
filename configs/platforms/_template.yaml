@@ -27,6 +27,8 @@ fields:                         # raw column name for each canonical field
   price: price                  # optional (marketplaces): an item's asking price
   attributes: []                # optional: extra columns to keep as-is. Never list free-text columns.
 
+rule_packs: [common, social]    # which rule packs apply: common, social, chat, marketplace
+                                # (configs/rules/); leave out to use every pack
 own_domains: []                 # optional: the platform's own sites, e.g. [reddit.com, redd.it];
                                 # links to them are navigation, not links to the outside world
 

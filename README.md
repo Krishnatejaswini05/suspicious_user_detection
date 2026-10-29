@@ -75,7 +75,8 @@ within the platform. Output: `data/features/platform=<p>/snapshots.parquet`.
 python -m riskdetect.scoring                    # latest snapshot, every platform
 ```
 
-Rules ([configs/rules.yaml](configs/rules.yaml)) fire on features; scoring
+Rules ([configs/rules/](configs/rules/), in packs by kind of platform: `common`, `social`,
+`chat`, `marketplace`; each platform file picks its packs with `rule_packs`) fire on features; scoring
 ([configs/scoring.yaml](configs/scoring.yaml)) turns them into a score, a confidence
 and a tier (LOW / WATCH / REVIEW / HIGH) with readable reasons and recommended actions.
 Output: `data/scores/platform=<p>/scores.parquet`.

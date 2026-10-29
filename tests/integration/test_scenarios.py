@@ -18,7 +18,7 @@ CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 @pytest.fixture(scope="module")
 def detector() -> Detector:
     return reference_detector(
-        CONFIGS / "rules.yaml", CONFIGS / "scoring.yaml", CONFIGS / "lists" / "blocked_domains.txt"
+        CONFIGS / "rules", CONFIGS / "scoring.yaml", CONFIGS / "lists" / "blocked_domains.txt"
     )
 
 

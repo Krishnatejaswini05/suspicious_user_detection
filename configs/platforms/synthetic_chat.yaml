@@ -18,6 +18,8 @@ fields:
   target_id: reply_to
   target_owner_id: reply_to_user
 
+rule_packs: [common, chat]
+
 event_types:
   from_field: event
   values:

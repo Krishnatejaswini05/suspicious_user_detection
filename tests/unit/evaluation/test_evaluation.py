@@ -158,7 +158,7 @@ def test_holdout_platform_trains_elsewhere_and_marks_only_that_platform() -> Non
 
     config = load_evaluation_config(PROJECT_ROOT / "configs" / "evaluation.yaml")
     scorer = Scorer(
-        load_rules(PROJECT_ROOT / "configs" / "rules.yaml"),
+        load_rules(PROJECT_ROOT / "configs" / "rules"),
         load_scoring_config(PROJECT_ROOT / "configs" / "scoring.yaml"),
     )
     report = evaluate(

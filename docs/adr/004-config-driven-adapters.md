@@ -13,7 +13,7 @@ platform logic creep into code.
   using `configs/platforms/<platform>.yaml`: field mapping, action → event type mapping,
   and rare, whitelisted overrides.
 - Platform files describe **data**, never detection **logic**. Logic lives in shared
-  config (`features.yaml`, `rules.yaml`, `scoring.yaml`).
+  config (`features.yaml`, the rule packs in `rules/`, `scoring.yaml`).
 - Configs are validated on load; a `validate-platform` command reports mapping results
   and which features are enabled.
 - Custom code adapters are allowed only for sources YAML cannot describe, and must

@@ -19,6 +19,8 @@ fields:
   target_owner_id: target_owner
   attributes: [price]
 
+rule_packs: [common, social, marketplace]
+
 event_types:
   from_field: action
   values:

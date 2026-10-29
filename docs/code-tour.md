@@ -105,7 +105,7 @@ From numbers to a score, a tier and readable reasons.
 
 | Read | What to look for |
 |---|---|
-| `configs/rules.yaml` | Every rule in plain YAML. Read the comments: each says which real case it came from |
+| `configs/rules/*.yaml` | Every rule in plain YAML, in packs: `common` for every platform, `social`, `chat`, `marketplace`. Each platform file picks its packs (`rule_packs`). Read the comments: each says which real case it came from |
 | `rules/conditions.py`, `rules/engine.py` | How conditions are checked; a missing value never triggers |
 | `rules/rule.py` | Why a rule on account age alone is refused |
 | `models/self_baseline.py` | "Different from your own past" (no training needed) |

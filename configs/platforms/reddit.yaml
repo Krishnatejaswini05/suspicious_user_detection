@@ -26,6 +26,8 @@ fields:
 
 own_domains: [reddit.com, redd.it]   # links to other subreddits or threads are navigation
 
+rule_packs: [common, social]
+
 event_types:
   from_field: action
   values:

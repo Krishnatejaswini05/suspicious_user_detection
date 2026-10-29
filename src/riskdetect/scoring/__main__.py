@@ -11,7 +11,7 @@ import argparse
 from collections import Counter
 from pathlib import Path
 
-from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms
+from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms, platform_rule_packs
 from riskdetect.models import load_models
 from riskdetect.rules import DEFAULT_RULES_PATH, load_rules
 from riskdetect.scoring.config import DEFAULT_SCORING_PATH, load_scoring_config
@@ -39,7 +39,12 @@ def main(argv: list[str] | None = None) -> int:
     features = ParquetFeatureStore(paths.features)
     scores = ParquetScoreStore(paths.scores)
     models = load_models(paths.root / "models")
-    scorer = Scorer(load_rules(args.rules), load_scoring_config(args.scoring), models=models)
+    scorer = Scorer(
+        load_rules(args.rules),
+        load_scoring_config(args.scoring),
+        models=models,
+        platform_packs=platform_rule_packs(args.config_dir),
+    )
 
     for platform in args.platform or available_platforms(args.config_dir):
         rows = features.read(platform)

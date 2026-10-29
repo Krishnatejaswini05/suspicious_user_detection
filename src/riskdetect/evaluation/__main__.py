@@ -11,7 +11,7 @@ any gate fails, so it can block a release in automation.
 import argparse
 from pathlib import Path
 
-from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms
+from riskdetect.adapters import DEFAULT_CONFIG_DIR, available_platforms, platform_rule_packs
 from riskdetect.evaluation.gates import DEFAULT_EVALUATION_PATH, load_evaluation_config
 from riskdetect.evaluation.run import evaluate
 from riskdetect.features import FeatureRow
@@ -74,7 +74,11 @@ def main(argv: list[str] | None = None) -> int:
     report = evaluate(
         snapshots,
         truths,
-        Scorer(load_rules(args.rules), load_scoring_config(args.scoring)),
+        Scorer(
+            load_rules(args.rules),
+            load_scoring_config(args.scoring),
+            platform_packs=platform_rule_packs(args.config_dir),
+        ),
         config,
         history=history,
         store=ParquetEventStore(paths.events) if history else None,

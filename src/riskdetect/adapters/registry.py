@@ -29,6 +29,16 @@ def available_platforms(config_dir: Path = DEFAULT_CONFIG_DIR) -> list[str]:
     return sorted(p.stem for p in config_dir.glob("*.yaml") if not p.stem.startswith("_"))
 
 
+def platform_rule_packs(config_dir: Path = DEFAULT_CONFIG_DIR) -> dict[str, tuple[str, ...]]:
+    """Platform -> the rule packs its file chose (platforms that chose none are left out)."""
+    packs = {}
+    for platform in available_platforms(config_dir):
+        chosen = load_platform_config(config_dir / f"{platform}.yaml").rule_packs
+        if chosen is not None:
+            packs[platform] = chosen
+    return packs
+
+
 def load_adapter(
     platform: str,
     *,
