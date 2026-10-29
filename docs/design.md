@@ -229,4 +229,4 @@ in the archive; checks are by reading flagged users' posts.
 | 9 | Classifier, calibration, combiner | **Done** |
 | 10 | `serving/` (API + CLI) | **Done** |
 | 11 | First real-data adapter (Stack Exchange) | **Done** |
-| 12 | Second real platform (Reddit: done); content similarity and graph features; monitoring | In progress |
+| 12 | Second real platform (Reddit: done); coordination across accounts (done: site pushes, copy campaigns, raids, invite floods); monitoring | In progress |

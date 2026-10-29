@@ -231,6 +231,61 @@ def _reported(world: World) -> list[Expect]:
     return [caught(48, "reported")]
 
 
+# -- coordination -----------------------------------------------------------------------------
+
+
+def _raid(world: World) -> list[Expect]:
+    raiders = [f"raider{i}" for i in range(20)]
+    message = "THIS SERVER IS DEAD, everyone come to our new home now, free nitro for all!!"
+    b.raid(world, raiders, ACTION_DAY, "s/games", message)
+    return [caught(1, *raiders, share=0.8)]
+
+
+def _launch_day(world: World) -> list[Expect]:
+    members = [f"newmember{i}" for i in range(25)]
+    b.launch_day(world, members, ACTION_DAY, "s/welcome")
+    return [unflagged(*members)]
+
+
+def _invite_flood(world: World) -> list[Expect]:
+    b.invite_flood(world, "inviter", ACTION_DAY, DAYS, "discord.gg/fr33st4ff")
+    return [caught(24, "inviter")]
+
+
+def _partner_invites(world: World) -> list[Expect]:
+    member(world, "partner", until=DAYS)
+    for day in (ACTION_DAY, ACTION_DAY + 3):
+        moment = at(day, 19)
+        world.write(
+            "partner",
+            moment,
+            f"Our sister server is open: https://discord.gg/sister {world.chatter()}",
+        )
+    return [unflagged("partner")]
+
+
+def _copy_campaign(world: World) -> list[Expect]:
+    accounts = [f"campaigner{i}" for i in range(6)]
+    for actor in accounts:
+        member(world, actor)
+    message = (
+        "Everyone please read: the moderators of this place are secretly paid to delete "
+        "the truth about the election, share this before it disappears"
+    )
+    b.copy_campaign(world, accounts, ACTION_DAY, message)
+    return [caught(24, *accounts, share=0.8)]
+
+
+def _viral_site(world: World) -> list[Expect]:
+    fans = [f"fan{i}" for i in range(15)]
+    for actor in fans:
+        member(world, actor, until=DAYS)
+    for i, actor in enumerate(fans):  # a brand-new site everyone suddenly talks about
+        moment = at(ACTION_DAY, 10 + i * 0.6)
+        world.write(actor, moment, f"Have you all seen this? {world.link('new-hit-game.io')}")
+    return [unflagged(*fans)]
+
+
 # -- marketplace ------------------------------------------------------------------------------
 
 
@@ -383,12 +438,6 @@ SCENARIOS: list[Scenario] = [
         "abuse",
         "A stolen account eased into spam, a little more each day.",
         _gradual_takeover,
-        known_gap="R004 and the self-baseline model look for a sudden jump (about 5x the usual "
-        "activity). A rule without the jump (links up sharply, mostly to one site new this "
-        "week) caught this case, but on real data it also flagged a trusted Stack Exchange "
-        "expert and about 25 ordinary Reddit users, who had simply started linking GitHub or "
-        "YouTube. Telling a thief's site apart needs to know that nobody else links it "
-        "(platform-wide, with Milestone 12).",
     ),
     Scenario(
         "disguised_bot",
@@ -427,8 +476,6 @@ SCENARIOS: list[Scenario] = [
         "abuse",
         "Fifteen fresh accounts each post a little for one site and upvote each other.",
         _spam_ring,
-        known_gap="Each account alone is small, so only about half are caught in time. Catching "
-        "the ring needs linking accounts that push the same site (coordination, Milestone 12).",
     ),
     Scenario(
         "reported_spammer",
@@ -478,5 +525,42 @@ SCENARIOS: list[Scenario] = [
         "abuse",
         "A fake buyer offers to overpay by cheque and asks for the difference back.",
         _overpayment_buyer,
+    ),
+    # coordination
+    Scenario(
+        "raid",
+        "abuse",
+        "Twenty brand-new accounts flood one channel with the same message within minutes.",
+        _raid,
+    ),
+    Scenario(
+        "invite_flood",
+        "abuse",
+        "An account posts invites into another server in channel after channel.",
+        _invite_flood,
+    ),
+    Scenario(
+        "copy_campaign",
+        "abuse",
+        "Six accounts post the same long message in different places within hours.",
+        _copy_campaign,
+    ),
+    Scenario(
+        "launch_day",
+        "innocent",
+        "A new community opens: 25 people join within the hour and say hello in their own words.",
+        _launch_day,
+    ),
+    Scenario(
+        "viral_new_site",
+        "innocent",
+        "Fifteen regulars each share a brand-new site that everyone is talking about.",
+        _viral_site,
+    ),
+    Scenario(
+        "partner_invites",
+        "innocent",
+        "A member shares a sister server's invite twice in a week.",
+        _partner_invites,
     ),
 ]

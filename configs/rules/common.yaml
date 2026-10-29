@@ -133,6 +133,62 @@ rules:
         - {feature: blocked_domain_posts_7d, op: ">=", value: 1}
     reason: "Linked to a known scam or malware website ({blocked_domain_posts_7d:.0f} posts this week)"
 
+  - id: R011_established_account_pushes_unknown_site
+    description: An account with history suddenly links far more, mostly to a site nobody else links.
+    category: hijacked
+    score_floor: 0.6
+    # A takeover eased in over a week never reaches R004's jump in activity. A first try
+    # without "nobody else links it" flagged a trusted Stack Exchange expert and Reddit
+    # users who had started linking GitHub or YouTube; those sites have many linkers.
+    when:
+      all:
+        - {feature: history_days, op: ">=", value: 14}
+        # Real data: people sharing a document or an image a few times in a discussion
+        # (5-6 posts, half of them links) also fit; a thief posts mostly links, at volume.
+        - {feature: posts_24h, op: ">=", value: 6}
+        - {feature: link_ratio_24h, op: ">=", value: 0.75}
+        - {feature: link_ratio_change_24h, op: ">=", value: 0.5}
+        - {feature: new_site_push_share_24h, op: ">=", value: 0.8}
+        - {feature: top_site_linkers, op: "<=", value: 2}
+    reason: >-
+      Compared with its own past, this account's links are up {link_ratio_change_24h:+.0%},
+      mostly ({new_site_push_share_24h:.0%}) to one website it never linked before this
+      week, which almost nobody else on the platform links ({top_site_linkers:.0f} accounts)
+
+  - id: R015_coordinated_site_push
+    description: Part of a group of accounts that all started pushing the same site this week.
+    category: coordinated
+    score_floor: 0.6
+    # A long-known site (YouTube, GitHub) has many earlier linkers; a ring's site has
+    # only the ring. The user must also be mostly pushing that site.
+    when:
+      all:
+        - {feature: posts_7d, op: ">=", value: 3}
+        - {feature: link_ratio_7d, op: ">=", value: 0.6}
+        - {feature: top_domain_share_7d, op: ">=", value: 0.6}
+        - {feature: top_site_new_linkers_7d, op: ">=", value: 5}
+        - {feature: top_site_new_linker_share_7d, op: ">=", value: 0.8}
+        # Real data: viral new sites (a prank site, a meme generator) also gain many new
+        # linkers in a week, but each person shares them about once; a ring keeps pushing.
+        - {feature: top_site_links_per_new_linker_7d, op: ">=", value: 2.5}
+    reason: >-
+      Mostly links one website ({top_domain_share_7d:.0%} of links), which
+      {top_site_new_linkers_7d:.0f} accounts started linking this week
+      ({top_site_new_linker_share_7d:.0%} of everyone who ever linked it), and keep linking
+      it ({top_site_links_per_new_linker_7d:.1f} links each)
+
+  - id: R016_copied_across_accounts
+    description: The same long message posted by several different accounts within a day.
+    category: coordinated
+    score_floor: 0.6
+    when:
+      all:
+        - {feature: posts_24h, op: ">=", value: 3}
+        - {feature: copied_by_others_24h, op: ">=", value: 4}
+    reason: >-
+      {copied_by_others_24h:.0f} other accounts posted the same long message as this one
+      in the last day
+
   - id: R012_offsite_risky_payment
     description: Pushing people to continue elsewhere and to pay in ways common in scams.
     category: scam

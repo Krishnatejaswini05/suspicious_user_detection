@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from riskdetect.adapters.transforms import hamming_distance
-from riskdetect.features.windows import DailyTally, TimeSeriesCounter
+from riskdetect.features.crowd import CrowdState
+from riskdetect.features.windows import HOUR, DailyTally, TimeSeriesCounter
 from riskdetect.schema import ContentKind, Event, EventType, TargetType
 
 URL_SHORTENERS = frozenset(
@@ -32,10 +33,15 @@ URL_SHORTENERS = frozenset(
 # A listing below this share of its category's usual price is "far below" (an iPhone for
 # $150). Honest sellers clearing out cheaply do this too, so it is never enough alone.
 CHEAP_LISTING_SHARE = 0.4
+# Links that invite people into another server or group (chat-app invite floods).
+INVITE_DOMAINS = frozenset(
+    {"discord.gg", "discordapp.com", "t.me", "telegram.me", "chat.whatsapp.com"}
+)
 NEAR_DUPLICATE_BITS = 3  # simhashes this close count as the same text, lightly edited
 _RECENT_HASHES = 200
 _RECENT_SIMHASHES = 50
 _RECENT_GAPS = 50
+_RECENT_SPACES = 200
 
 
 @dataclass
@@ -43,6 +49,8 @@ class ActorState:
     actor_id: str
     # Known-bad domains (shared, read-only); posts linking to them are counted.
     blocked_domains: frozenset[str] = frozenset()
+    # The platform-wide memory shared by every actor on the platform (coordination).
+    crowd: CrowdState | None = field(default=None, repr=False, compare=False)
     created_at: datetime | None = None
     first_seen: datetime | None = None
     first_active: datetime | None = None  # first event other than signup
@@ -58,6 +66,7 @@ class ActorState:
     with_link: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     with_shortener: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     with_blocked_domain: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
+    with_invite: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     interactions: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     reports_received: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     replies_received: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
@@ -72,6 +81,9 @@ class ActorState:
     hours: DailyTally = field(default_factory=DailyTally)
 
     recent_hashes: deque[str] = field(default_factory=lambda: deque(maxlen=_RECENT_HASHES))
+    recent_spaces: deque[tuple[datetime, str]] = field(
+        default_factory=lambda: deque(maxlen=_RECENT_SPACES)
+    )
     recent_simhashes: deque[int] = field(default_factory=lambda: deque(maxlen=_RECENT_SIMHASHES))
     gaps_seconds: deque[float] = field(default_factory=lambda: deque(maxlen=_RECENT_GAPS))
 
@@ -95,6 +107,7 @@ class ActorState:
         self.hours.add(moment, str(moment.hour))
         if event.space_id is not None:
             self.spaces.add(moment, event.space_id)
+            self.recent_spaces.append((moment, event.space_id))
 
         if event.event_type is EventType.CONTENT_CREATED and event.content is not None:
             self._apply_content(event, moment)
@@ -133,6 +146,8 @@ class ActorState:
                 self.with_shortener.add(moment)
             if self.blocked_domains.intersection(content.url_domains):
                 self.with_blocked_domain.add(moment)
+            if INVITE_DOMAINS.intersection(content.url_domains):
+                self.with_invite.add(moment)
             for domain in content.url_domains:
                 self.domains.add(moment, domain)
 
@@ -146,6 +161,14 @@ class ActorState:
                 for other in self.recent_simhashes
             )
         return False
+
+    def busiest_space(self, as_of: datetime) -> str | None:
+        """The space this actor posted in most during the hour before ``as_of``."""
+        counts: dict[str, int] = {}
+        for moment, space in self.recent_spaces:
+            if as_of - HOUR <= moment < as_of:
+                counts[space] = counts.get(space, 0) + 1
+        return max(counts, key=lambda s: (counts[s], s)) if counts else None
 
     def record_listing_price(self, moment: datetime, share_of_usual: float) -> None:
         """A listing priced at ``share_of_usual`` of its category's usual price."""
@@ -179,6 +202,7 @@ class ActorState:
             self.with_link,
             self.with_shortener,
             self.with_blocked_domain,
+            self.with_invite,
             self.interactions,
             self.reports_received,
             self.replies_received,

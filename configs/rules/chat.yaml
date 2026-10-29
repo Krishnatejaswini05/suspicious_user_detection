@@ -1,6 +1,34 @@
-# Pack: chat. Chat apps with channels and groups (Discord, Telegram). Planned: raids (many new
-# accounts at once) and invite-link floods.
+# Pack: chat. Chat apps with channels and groups (Discord, Telegram): raids (many new
+# accounts flooding a channel at once) and invite-link floods.
 
 version: 1
 
-rules: []
+rules:
+  - id: R017_raid
+    description: Many brand-new accounts flooding one channel with the same messages.
+    category: coordinated
+    score_floor: 0.75
+    # New members arriving together is normal (a launch, a shout-out); copying each
+    # other's long messages while they do is not.
+    when:
+      all:
+        - {feature: posts_1h, op: ">=", value: 3}
+        - {feature: space_newcomers_1h, op: ">=", value: 8}
+        - {feature: copied_by_others_24h, op: ">=", value: 2}
+    reason: >-
+      Part of a flood: {space_newcomers_1h:.0f} brand-new accounts posted in the same
+      channel within the hour, and {copied_by_others_24h:.0f} others posted this account's
+      exact message
+
+  - id: R018_invite_flood
+    description: Mostly posting invites into other servers or groups, across many channels.
+    category: spam
+    score_floor: 0.6
+    when:
+      all:
+        - {feature: posts_7d, op: ">=", value: 5}
+        - {feature: invite_link_share_7d, op: ">=", value: 0.6}
+        - {feature: distinct_spaces_7d, op: ">=", value: 3}
+    reason: >-
+      {invite_link_share_7d:.0%} of this week's posts invite people into another server or
+      group, across {distinct_spaces_7d:.0f} channels

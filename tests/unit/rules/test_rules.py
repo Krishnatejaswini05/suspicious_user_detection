@@ -207,3 +207,59 @@ class TestMarketplaceRules:
         hits = evaluate(rules, {"cheap_listings_7d": 10.0, "offsite_contact_share_7d": 0.0})
         assert [h.rule.id for h in hits] == ["R014_cheap_listings"]
         assert hits[0].rule.score_floor is None
+
+
+class TestCoordinationRules:
+    def fired(self, row: dict[str, Any]) -> list[str]:
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules")
+        return [hit.rule.id for hit in evaluate(rules, row)]
+
+    RING: ClassVar[dict[str, float]] = {
+        "posts_7d": 9.0,
+        "link_ratio_7d": 1.0,
+        "top_domain_share_7d": 1.0,
+        "top_site_new_linkers_7d": 15.0,
+        "top_site_new_linker_share_7d": 1.0,
+        "top_site_links_per_new_linker_7d": 3.0,
+    }
+
+    def test_a_ring_pushing_a_new_site(self) -> None:
+        assert "R015_coordinated_site_push" in self.fired(self.RING)
+
+    def test_a_viral_site_shared_now_and_then_is_not_a_ring(self) -> None:
+        fan = {**self.RING, "link_ratio_7d": 0.2, "top_domain_share_7d": 0.3}
+        assert "R015_coordinated_site_push" not in self.fired(fan)
+        # Real data: a site that just went viral, shared about once by each person.
+        viral = {**self.RING, "top_site_links_per_new_linker_7d": 1.2}
+        assert "R015_coordinated_site_push" not in self.fired(viral)
+
+    def test_a_takeover_pushing_a_site_nobody_else_links(self) -> None:
+        row = {
+            "history_days": 60.0,
+            "posts_24h": 8.0,
+            "link_ratio_24h": 0.9,
+            "link_ratio_change_24h": 0.6,
+            "new_site_push_share_24h": 1.0,
+            "top_site_linkers": 1.0,
+        }
+        assert "R011_established_account_pushes_unknown_site" in self.fired(row)
+        github = {**row, "top_site_linkers": 4000.0}  # the real-data false alarm, now excluded
+        assert "R011_established_account_pushes_unknown_site" not in self.fired(github)
+        discussion = {**row, "posts_24h": 5.0, "link_ratio_24h": 0.6}  # sharing a document
+        assert "R011_established_account_pushes_unknown_site" not in self.fired(discussion)
+
+    def test_copied_across_accounts(self) -> None:
+        assert "R016_copied_across_accounts" in self.fired(
+            {"posts_24h": 3.0, "copied_by_others_24h": 5.0}
+        )
+
+    def test_raid_needs_copying_not_just_newcomers(self) -> None:
+        raid = {"posts_1h": 4.0, "space_newcomers_1h": 20.0, "copied_by_others_24h": 10.0}
+        assert "R017_raid" in self.fired(raid)
+        launch = {**raid, "copied_by_others_24h": 0.0}
+        assert "R017_raid" not in self.fired(launch)
+
+    def test_invite_flood(self) -> None:
+        row = {"posts_7d": 20.0, "invite_link_share_7d": 0.9, "distinct_spaces_7d": 6.0}
+        assert "R018_invite_flood" in self.fired(row)
+        assert "R018_invite_flood" not in self.fired({**row, "invite_link_share_7d": 0.1})

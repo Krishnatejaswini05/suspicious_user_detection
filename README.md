@@ -235,7 +235,7 @@ python -m riskdetect.scenarios                  # all scenarios -> data/reports/
 python -m riskdetect.scenarios --only spam_ring
 ```
 
-[src/riskdetect/scenarios/library.py](src/riskdetect/scenarios/library.py) lists 30
+[src/riskdetect/scenarios/library.py](src/riskdetect/scenarios/library.py) lists 36
 situations, each a small simulated world (a crowd plus the users under test) fed through
 the same live scoring the server uses, with an expected outcome:
 
@@ -252,8 +252,7 @@ the same live scoring the server uses, with an expected outcome:
   buyer who offers to overpay.
 
 Situations the detector does not handle yet are marked as **known gaps** with the
-reason (today: a gradual takeover, a disguised bot, a spam ring, and a moderator who is
-not on the allowlist). They run as expected failures in the test suite, which notices
+reason (today: a disguised bot, and a moderator who is not on the allowlist). They run as expected failures in the test suite, which notices
 when one starts passing. Gaps closed so far:
 
 - A stolen account's first burst was diluted by the owner's normal posts from earlier
@@ -263,13 +262,45 @@ when one starts passing. Gaps closed so far:
   "see r/politics") are navigation, not promotion: a platform file lists them in
   `own_domains`, and the adapter leaves them out.
 - A takeover eased in over a week made its own site look familiar after a day. A site
-  now counts as new if the user never linked it before the last week. (A rule to catch
-  the gradual takeover itself was tried and dropped: on real data it flagged a trusted
-  Stack Exchange expert and ordinary Reddit users who had started linking GitHub or
-  YouTube. See the known gap.)
+  now counts as new if the user never linked it before the last week. A first rule for
+  the gradual takeover was dropped: on real data it flagged a trusted Stack Exchange
+  expert and ordinary Reddit users who had started linking GitHub or YouTube. With the
+  platform-wide memory, R011 now also asks whether anyone else links the site.
+- A spam ring of small accounts escaped every per-user rule; R015 catches the group.
 
 The learned classifier is left out here on purpose: it is trained on the simulator, so it
 would be tested against itself.
+
+## Coordination (groups of accounts)
+
+Some abuse only shows when accounts are looked at together. `features/crowd.py` keeps a
+small platform-wide memory, from past events only: which accounts linked each website and
+when each first did; which accounts posted each long message in the last day; who posted
+in each space in the last two hours.
+
+| Rule | Pack | Fires on |
+|---|---|---|
+| R015 | common | Mostly pushing a site that a sudden group of accounts all started linking this week, and keep linking (a spam ring). Long-known sites such as YouTube have many earlier linkers; a site going viral is shared about once by each person |
+| R016 | common | The same long message posted by several other accounts within a day (a copy campaign) |
+| R011 | common | An account with history suddenly linking far more, mostly to a site nobody else links (a takeover eased in slowly) |
+| R017 | chat | Many brand-new accounts flooding one channel within the hour, copying each other (a raid) |
+| R018 | chat | Mostly posting invites into other servers (discord.gg, t.me), across many channels |
+
+The memory must first watch a platform: site questions need 14 days of data, and who is a
+newcomer needs 7. On the first day of the Reddit data every site looked newly linked and
+every account brand new, which at first flagged hundreds of ordinary users.
+
+On the Reddit data (November-December 2008), coordination added 65 flagged users: a ring
+of about a dozen sockpuppet accounts posting the same long messages during the election
+(R016), and small rings pushing one site each, such as accounts with scrambled names
+pushing the same download site (R015). Viral new sites (a prank site, a meme generator)
+first looked like rings too: each person shares those about once, while a ring keeps
+pushing. That condition also lets through ring members who post the site only once or
+twice. Stack Exchange stays at 0 flagged users.
+
+Each has an innocent look-alike in the scenario library that it must not flag: a launch
+day (many new members saying hello in their own words), a brand-new site everyone is
+suddenly sharing, a member sharing a partner server's invite now and then.
 
 ## Marketplace safety
 

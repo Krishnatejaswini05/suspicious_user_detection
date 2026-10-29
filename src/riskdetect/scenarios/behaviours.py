@@ -362,3 +362,48 @@ def honest_listings(
             reply=True,
             to=(item, actor),
         )
+
+
+# -- coordination --------------------------------------------------------------------------------
+
+
+def raid(world: World, raiders: list[str], day: int, channel: str, message: str) -> None:
+    """Brand-new accounts join within minutes and flood one channel with the same message."""
+    rng = world.rng
+    start = at(day, 20)
+    for i, actor in enumerate(raiders):
+        joined = start + timedelta(minutes=i * 0.5)
+        world.signup(actor, joined)
+        for k in range(4):
+            moment = joined + timedelta(minutes=1 + k * 2 + rng.uniform(0, 1))
+            world.write(actor, moment, message, space=channel)
+
+
+def launch_day(world: World, members: list[str], day: int, channel: str) -> None:
+    """A new community opens: many people join within the hour and say hello in their own words."""
+    rng = world.rng
+    start = at(day, 18)
+    for i, actor in enumerate(members):
+        joined = start + timedelta(minutes=i * 2)
+        world.signup(actor, joined)
+        for k in range(3):
+            moment = joined + timedelta(minutes=2 + k * 5 + rng.uniform(0, 2))
+            world.write(actor, moment, f"Hello everyone! {world.chatter((8, 16))}", space=channel)
+
+
+def invite_flood(world: World, actor: str, first_day: int, last_day: int, invite: str) -> None:
+    """Posts invites into another server in channel after channel."""
+    world.signup(actor, at(first_day))
+    for day in range(first_day, last_day):
+        for _ in range(10):
+            moment = at(day, world.rng.uniform(8, 23))
+            text = f"{world.chatter((3, 8))} Join us: https://{invite}"
+            world.write(actor, moment, text)
+
+
+def copy_campaign(world: World, accounts: list[str], day: int, message: str) -> None:
+    """Several accounts post the very same long message in different places within hours."""
+    for i, actor in enumerate(accounts):
+        for k in range(3):
+            moment = at(day, 9 + i * 0.5 + k * 2 + world.rng.uniform(0, 0.4))
+            world.write(actor, moment, message, reply=world.rng.random() < 0.5)

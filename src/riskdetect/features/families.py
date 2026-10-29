@@ -9,6 +9,7 @@ from datetime import datetime
 from itertools import pairwise
 from statistics import mean, median, pstdev
 
+from riskdetect.features.crowd import NEWCOMER_HISTORY_NEEDED, SITE_HISTORY_NEEDED
 from riskdetect.features.definition import Feature, FeatureValue
 from riskdetect.features.state import ActorState
 from riskdetect.features.windows import DAY, HOUR, MONTH, WEEK, TimeSeriesCounter, day_index
@@ -150,6 +151,68 @@ def _new_site_push_share(s: ActorState, as_of: datetime) -> FeatureValue:
     if total == 0:
         return None
     return max((n for domain, n in recent.items() if domain not in known), default=0) / total
+
+
+# -- coordination: questions about the whole platform ------------------------------------
+
+
+def _top_site(s: ActorState, as_of: datetime) -> str | None:
+    counts = s.domains.totals(WEEK, as_of)
+    return max(counts, key=lambda d: (counts[d], d)) if counts else None
+
+
+def _site_answerable(s: ActorState, as_of: datetime) -> str | None:
+    """This user's top site, if the platform has been watched long enough to judge it."""
+    if s.crowd is None or not s.crowd.has_watched(as_of, SITE_HISTORY_NEEDED):
+        return None
+    return _top_site(s, as_of)
+
+
+def _top_site_new_linkers(s: ActorState, as_of: datetime) -> FeatureValue:
+    site = _site_answerable(s, as_of)
+    if site is None or s.crowd is None:
+        return None
+    return float(s.crowd.site_linkers(site, as_of, WEEK)[0])
+
+
+def _top_site_new_linker_share(s: ActorState, as_of: datetime) -> FeatureValue:
+    site = _site_answerable(s, as_of)
+    if site is None or s.crowd is None:
+        return None
+    recent, ever = s.crowd.site_linkers(site, as_of, WEEK)
+    return recent / ever if ever else None
+
+
+def _top_site_linkers(s: ActorState, as_of: datetime) -> FeatureValue:
+    site = _site_answerable(s, as_of)
+    if site is None or s.crowd is None:
+        return None
+    return float(s.crowd.site_linkers(site, as_of, WEEK)[1])
+
+
+def _top_site_links_per_new_linker(s: ActorState, as_of: datetime) -> FeatureValue:
+    site = _site_answerable(s, as_of)
+    if site is None or s.crowd is None:
+        return None
+    new_linkers = s.crowd.site_linkers(site, as_of, WEEK)[0]
+    if new_linkers == 0:
+        return None
+    return s.crowd.site_links(site, as_of, WEEK) / new_linkers
+
+
+def _copied_by_others(s: ActorState, as_of: datetime) -> FeatureValue:
+    if s.crowd is None:
+        return None
+    return float(s.crowd.copied_by_others(s.actor_id, as_of, DAY))
+
+
+def _space_newcomers(s: ActorState, as_of: datetime) -> FeatureValue:
+    space = s.busiest_space(as_of)
+    if space is None or s.crowd is None:
+        return None
+    if not s.crowd.has_watched(as_of, NEWCOMER_HISTORY_NEEDED):
+        return None  # everyone looks new at first
+    return float(s.crowd.newcomers_in_space(space, as_of, HOUR))
 
 
 def _dormancy_gap_days(s: ActorState, as_of: datetime) -> FeatureValue:
@@ -336,6 +399,52 @@ FEATURES: tuple[Feature, ...] = (
             s.posts_written.count(WEEK, t) + s.replies_written.count(WEEK, t),
         ),
         requires=frozenset({"content"}),
+    ),
+    # coordination: compared with what other accounts on the platform did
+    Feature(
+        "top_site_new_linkers_7d", 1, "coordination",
+        "Accounts that linked this user's most-linked site for the first time this week.",
+        _top_site_new_linkers,
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "top_site_new_linker_share_7d", 1, "coordination",
+        "Of all accounts that ever linked this user's most-linked site, the share that "
+        "started this week (a site pushed by a sudden group, not a long-known site).",
+        _top_site_new_linker_share,
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "top_site_links_per_new_linker_7d", 1, "coordination",
+        "This week's links to this user's most-linked site, per account new to it this week "
+        "(a ring keeps pushing its site; a site going viral is shared about once each).",
+        _top_site_links_per_new_linker,
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "top_site_linkers", 1, "coordination",
+        "Accounts that ever linked this user's most-linked site (1 = nobody else).",
+        _top_site_linkers,
+        requires=frozenset({"content", "urls"}),
+    ),
+    Feature(
+        "copied_by_others_24h", 1, "coordination",
+        "Most other accounts that posted the same long message as this user in the last day.",
+        _copied_by_others,
+        requires=frozenset({"content", "text"}),
+    ),
+    Feature(
+        "space_newcomers_1h", 1, "coordination",
+        "Brand-new accounts that posted in this user's busiest space in the last hour.",
+        _space_newcomers,
+        requires=frozenset({"content", "space_id"}),
+    ),
+    Feature(
+        "invite_link_share_7d", 1, "coordination",
+        "Share of the last 7 days' posts with an invite into another server or group "
+        "(discord.gg, t.me...).",
+        lambda s, t: _ratio(s.with_invite.count(WEEK, t), s.content.count(WEEK, t)),
+        requires=frozenset({"content", "urls"}),
     ),
     # marketplace safety
     Feature(
