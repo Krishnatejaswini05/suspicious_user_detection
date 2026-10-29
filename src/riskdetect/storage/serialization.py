@@ -32,6 +32,9 @@ EVENT_SCHEMA: dict[str, str] = {
     "language": "VARCHAR",
     "url_domains": "VARCHAR[]",
     "mention_count": "INTEGER",
+    "offsite_contact": "BOOLEAN",
+    "risky_payment": "BOOLEAN",
+    "price": "DOUBLE",
     "interaction_kind": "VARCHAR",
     "interaction_value": "DOUBLE",
     "moderation_action": "VARCHAR",
@@ -65,6 +68,9 @@ def event_to_row(event: Event) -> dict[str, Any]:
         "language": content.language if content else None,
         "url_domains": list(content.url_domains) if content else None,
         "mention_count": content.mention_count if content else None,
+        "offsite_contact": content.offsite_contact if content else None,
+        "risky_payment": content.risky_payment if content else None,
+        "price": content.price if content else None,
         "interaction_kind": str(interaction.kind) if interaction else None,
         "interaction_value": interaction.value if interaction else None,
         "moderation_action": str(moderation.action) if moderation else None,
@@ -102,6 +108,10 @@ def row_to_event(row: dict[str, Any]) -> Event:
             "language": row["language"],
             "url_domains": row["url_domains"] or (),
             "mention_count": row["mention_count"] or 0,
+            # Files written before these columns existed read them as unknown.
+            "offsite_contact": row.get("offsite_contact"),
+            "risky_payment": row.get("risky_payment"),
+            "price": row.get("price"),
         }
     if row["interaction_kind"] is not None:
         data["interaction"] = {"kind": row["interaction_kind"], "value": row["interaction_value"]}

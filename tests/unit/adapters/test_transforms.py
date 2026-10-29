@@ -9,6 +9,9 @@ from riskdetect.adapters.transforms import (
     extract_domains,
     hamming_distance,
     hash_text,
+    mentions_offsite_contact,
+    mentions_risky_payment,
+    parse_price,
     parse_time,
     pseudonymize_id,
     simhash_text,
@@ -114,3 +117,60 @@ def test_own_domains_are_navigation_not_links() -> None:
     found = ("reddit.com", "old.reddit.com", "notreddit.com", "imgur.com")
     assert drop_own_domains(found, ("reddit.com",)) == ("notreddit.com", "imgur.com")
     assert drop_own_domains(found, ()) == found
+
+
+class TestMarketplaceSigns:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "WhatsApp me at +1 555 123 4567",
+            "call me 555-123-4567",
+            "write to joe.smith@example.com",
+            "Message me on Telegram",
+        ],
+    )
+    def test_offsite_contact(self, text: str) -> None:
+        assert mentions_offsite_contact(text)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Posted on 2008-11-12 at 10:00",
+            "over 1,000,000 users",
+            "nice bike, pick up downtown",
+            "sent 1790087523 piconero at block 2409139048",  # amounts, not phone numbers
+        ],
+    )
+    def test_not_offsite_contact(self, text: str) -> None:
+        assert not mentions_offsite_contact(text)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Payment by Google Play gift card only",
+            "I will send a cashier's check, refund the difference",
+            "pay with Bitcoin",
+            "Western Union please",
+        ],
+    )
+    def test_risky_payment(self, text: str) -> None:
+        assert mentions_risky_payment(text)
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "Cash on pickup, or card in person",
+            "Bitcoin and other crypto prices moved again today",
+            "How does Monero compare with Bitcoin privacy?",
+            "The miner mines only XMC but not Monero, said the crypto wiki",
+        ],
+    )
+    def test_talking_about_money_is_not_asking_for_it(self, text: str) -> None:
+        assert not mentions_risky_payment(text)
+
+    def test_prices(self) -> None:
+        assert parse_price("$1,200") == 1200.0
+        assert parse_price(99) == 99.0
+        assert parse_price("free") is None
+        assert parse_price(-3) is None
+        assert parse_price(True) is None

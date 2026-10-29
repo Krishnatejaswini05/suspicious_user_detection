@@ -234,17 +234,21 @@ python -m riskdetect.scenarios                  # all scenarios -> data/reports/
 python -m riskdetect.scenarios --only spam_ring
 ```
 
-[src/riskdetect/scenarios/library.py](src/riskdetect/scenarios/library.py) lists 23
+[src/riskdetect/scenarios/library.py](src/riskdetect/scenarios/library.py) lists 30
 situations, each a small simulated world (a crowd plus the users under test) fed through
 the same live scoring the server uses, with an expected outcome:
 
 - **Innocent but unusual** (must never reach REVIEW): a big news day, a holiday binge, a
   power user, a keen link-sharer, an expert citing sources, a moderator's notices, a
   traveller changing time zones, a brand-new active member, a member returning after
-  weeks away, a controversial member who is reported but widely answered.
+  weeks away, a controversial member who is reported but widely answered; on a
+  marketplace, a genuine new seller, a house clearance, a seller sharing a phone number
+  for pickup, and a member who talks about Bitcoin every day.
 - **Abuse** (must reach REVIEW within a stated time): a copy-paste bot, a known scam link,
   a sudden and a gradual account takeover, a bot disguised as a human, a slow spammer, a
-  self-promoter, a comment spammer, a URL-shortener spammer, a spam ring, a reported spammer.
+  self-promoter, a comment spammer, a URL-shortener spammer, a spam ring, a reported
+  spammer; on a marketplace, a fake seller (with and without payment talk) and a fake
+  buyer who offers to overpay.
 
 Situations the detector does not handle yet are marked as **known gaps** with the
 reason (today: a gradual takeover, a disguised bot, a spam ring, and a moderator who is
@@ -265,6 +269,31 @@ when one starts passing. Gaps closed so far:
 
 The learned classifier is left out here on purpose: it is trained on the simulator, so it
 would be tested against itself.
+
+## Marketplace safety
+
+Fake sellers and fake buyers give themselves away less by how much they post than by
+what they ask for. Before discarding a message's text, the adapter notes two facts:
+
+- **off-platform contact**: a phone number, an email, or "WhatsApp / Telegram / text me";
+- **risky payment**: gift cards, crypto, wire transfers, cashier's cheques, "refund the
+  difference" (English keywords only, for now).
+
+A platform file may also map a **price** column. A listing is then compared with the usual
+price in its category, learned only from other sellers' earlier listings.
+
+| Rule | Fires on | Strength |
+|---|---|---|
+| R012 | Off-platform contact together with risky payment (a fake buyer's overpayment trick, a fake seller's "pay by gift card") | REVIEW |
+| R013 | Two or more listings far below the usual price, with off-platform contact or risky payment | REVIEW or HIGH |
+| R014 | Several listings far below the usual price, alone | weak (WATCH at most) |
+
+Each strong rule needs two independent signs, because each sign alone is often innocent:
+a seller leaves a phone number for pickup, someone moving house sells everything cheaply,
+a crypto forum mentions Bitcoin constantly. The scenario library tests all of these.
+
+Not covered yet: non-delivery reports from buyers (needs trade events), the same item
+listed in many cities, and ratings from linked accounts (Milestone 12).
 
 ## Evaluate (the report card)
 

@@ -26,6 +26,9 @@ from riskdetect.adapters.transforms import (
     drop_own_domains,
     extract_domains,
     hash_text,
+    mentions_offsite_contact,
+    mentions_risky_payment,
+    parse_price,
     parse_time,
     pseudonymize_id,
     simhash_text,
@@ -187,6 +190,9 @@ class GenericAdapter:
                 self.config.own_domains,
             ),
             "mention_count": count_mentions(text) if text else 0,
+            "offsite_contact": mentions_offsite_contact(text) if text else None,
+            "risky_payment": mentions_risky_payment(text) if text else None,
+            "price": parse_price(data.get(fields.price)) if fields.price else None,
         }
 
     def _target(self, data: dict[str, Any], mapping: EventMapping) -> dict[str, Any] | None:

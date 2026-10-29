@@ -223,3 +223,21 @@ class TestReport:
         list(run_adapter(adapter, report))
         assert report.missing_columns == ["lang"]
         assert "WARNING" in report.summary()
+
+
+def test_price_and_text_signs_are_read_then_text_discarded(tmp_path: Path) -> None:
+    data = config_data()
+    data["fields"] = {**data["fields"], "price": "price", "attributes": []}
+    (tmp_path / "mini_market.csv").write_text(
+        "listing_id,seller_id,action,created_time,category,description,price,target,target_owner\n"
+        "L9,S1,new_listing,2026-10-02T10:00:00Z,phones,"
+        "New phone! WhatsApp me and pay by gift card,$150,,\n",
+        encoding="utf-8",
+    )
+    adapter = GenericAdapter(parse_platform_config(data), base_dir=tmp_path, now=NOW)
+    [listing] = events(run(adapter))
+    assert listing.content is not None
+    assert listing.content.price == 150.0
+    assert listing.content.offsite_contact is True
+    assert listing.content.risky_payment is True
+    assert "gift card" not in listing.model_dump_json()  # the text itself is never kept

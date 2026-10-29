@@ -119,6 +119,50 @@ rules:
       {posts_7d:.0f} posts this week, {reply_share_7d:.0%} of them replies to others,
       {link_ratio_7d:.0%} with links and {top_domain_share_7d:.0%} of links to the same website
 
+  # -- marketplace safety -------------------------------------------------------------
+  # Each needs two independent signs. Sharing a phone number for pickup is normal, and so
+  # is selling cheaply when moving house; together with risky payment, they are not.
+
+  - id: R012_offsite_risky_payment
+    description: Pushing people to continue elsewhere and to pay in ways common in scams.
+    category: scam
+    score_floor: 0.6
+    # At least 5 messages, so one odd message cannot trigger it (real data: a placeholder
+    # email in a beginner's question on a crypto Q&A site).
+    when:
+      all:
+        - {feature: posts_7d, op: ">=", value: 5}
+        - {feature: offsite_contact_share_7d, op: ">=", value: 0.3}
+        - {feature: risky_payment_share_7d, op: ">=", value: 0.3}
+    reason: >-
+      {offsite_contact_share_7d:.0%} of this week's messages ask to continue outside the
+      platform, and {risky_payment_share_7d:.0%} bring up payment methods common in scams
+      (gift cards, crypto, wire transfers)
+
+  - id: R013_too_good_to_be_true
+    description: Listings far below the usual price, with off-platform contact or risky payment.
+    category: scam
+    score_floor: 0.75
+    when:
+      all:
+        - {feature: cheap_listings_7d, op: ">=", value: 2}
+        - any:
+            - {feature: offsite_contact_share_7d, op: ">=", value: 0.3}
+            - {feature: risky_payment_share_7d, op: ">=", value: 0.3}
+    reason: >-
+      {cheap_listings_7d:.0f} listings this week at far below the usual price, while asking
+      to continue outside the platform ({offsite_contact_share_7d:.0%} of messages) or to pay
+      in risky ways ({risky_payment_share_7d:.0%})
+
+  - id: R014_cheap_listings
+    description: Several listings far below the usual price (honest clear-outs do this too).
+    category: scam
+    weight: 0.25
+    when:
+      all:
+        - {feature: cheap_listings_7d, op: ">=", value: 3}
+    reason: "{cheap_listings_7d:.0f} listings this week at far below the usual price for their category"
+
   - id: R008_known_scam_site
     description: Linking to a site on the blocklist of known scam or malware sites.
     category: scam

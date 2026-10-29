@@ -231,6 +231,68 @@ def _reported(world: World) -> list[Expect]:
     return [caught(48, "reported")]
 
 
+# -- marketplace ------------------------------------------------------------------------------
+
+
+def _genuine_new_seller(world: World) -> list[Expect]:
+    b.market_crowd(world)
+    world.signup("newseller", at(ACTION_DAY))
+    b.honest_listings(world, "newseller", ACTION_DAY, 6)
+    return [unflagged("newseller")]
+
+
+def _house_clearance(world: World) -> list[Expect]:
+    b.market_crowd(world)
+    member(world, "mover")
+    b.honest_listings(
+        world,
+        "mover",
+        ACTION_DAY,
+        15,
+        share_of_usual=(0.15, 0.35),
+        note="Moving abroad, everything must go this week.",
+        per_day=8,
+    )
+    return [unflagged("mover")]
+
+
+def _pickup_phone(world: World) -> list[Expect]:
+    b.market_crowd(world)
+    member(world, "localseller")
+    b.honest_listings(
+        world, "localseller", ACTION_DAY, 6, note=f"Call me at {b.phone_number(world)} for pickup."
+    )
+    return [unflagged("localseller")]
+
+
+def _crypto_chatter(world: World) -> list[Expect]:
+    member(world, "cryptofan", until=DAYS)
+    for day in range(ACTION_DAY, DAYS):
+        for _ in range(4):
+            moment = at(day, world.rng.uniform(9, 22))
+            text = f"Bitcoin and other crypto prices moved again today. {world.chatter()}"
+            world.write("cryptofan", moment, text, reply=True)
+    return [unflagged("cryptofan")]
+
+
+def _fake_seller(world: World) -> list[Expect]:
+    b.market_crowd(world)
+    b.fake_seller(world, "fakeseller", ACTION_DAY, listings=4)
+    return [caught(24, "fakeseller")]
+
+
+def _quiet_fake_seller(world: World) -> list[Expect]:
+    b.market_crowd(world)
+    b.fake_seller(world, "quietfake", ACTION_DAY, listings=3, payment=False)
+    return [caught(24, "quietfake")]
+
+
+def _overpayment_buyer(world: World) -> list[Expect]:
+    b.market_crowd(world)
+    b.overpayment_buyer(world, "fakebuyer", ACTION_DAY, messages=8)
+    return [caught(24, "fakebuyer")]
+
+
 SCENARIOS: list[Scenario] = [
     # innocent
     Scenario("everyday_crowd", "innocent", "Ordinary members going about their days.", _everyday),
@@ -373,5 +435,48 @@ SCENARIOS: list[Scenario] = [
         "abuse",
         "Promotions that people keep reporting and nobody answers.",
         _reported,
+    ),
+    # marketplace
+    Scenario(
+        "genuine_new_seller",
+        "innocent",
+        "A brand-new seller lists six items at fair prices and answers buyers.",
+        _genuine_new_seller,
+    ),
+    Scenario(
+        "house_clearance",
+        "innocent",
+        "Moving abroad: fifteen items at a fraction of their price in two days.",
+        _house_clearance,
+    ),
+    Scenario(
+        "pickup_phone_seller",
+        "innocent",
+        "A seller who leaves a phone number for pickup, at fair prices.",
+        _pickup_phone,
+    ),
+    Scenario(
+        "crypto_chatter",
+        "innocent",
+        "A member who talks about Bitcoin prices every day.",
+        _crypto_chatter,
+    ),
+    Scenario(
+        "fake_seller",
+        "abuse",
+        "A new account sells phones and laptops far too cheap, wants WhatsApp and gift cards.",
+        _fake_seller,
+    ),
+    Scenario(
+        "quiet_fake_seller",
+        "abuse",
+        "Far-too-cheap gadgets with 'text me to buy', but no payment talk.",
+        _quiet_fake_seller,
+    ),
+    Scenario(
+        "overpayment_buyer",
+        "abuse",
+        "A fake buyer offers to overpay by cheque and asks for the difference back.",
+        _overpayment_buyer,
     ),
 ]

@@ -139,6 +139,67 @@ def drop_own_domains(domains: tuple[str, ...], own: tuple[str, ...]) -> tuple[st
     return tuple(d for d in domains if not any(d == o or d.endswith("." + o) for o in own))
 
 
+# A phone number needs separators or a leading "+": a bare run of digits is far more
+# often an amount, an id or a timestamp (real data: Monero amounts and block data).
+_PHONE_RE = re.compile(
+    r"(?<![\w-])(?:\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3}[\s.-]?\d{3,4}"
+    r"|\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4})(?![\w-])"
+)
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+_OFFSITE_WORDS = re.compile(
+    r"\b(whats\s?app|telegram|wechat|kik|viber|text me|call me|dm me on|"
+    r"contact me (?:at|on)|email me|reach me (?:at|on))\b",
+    re.IGNORECASE,
+)
+# Payment tricks that are almost never innocent in a conversation between strangers.
+_ALWAYS_RISKY = re.compile(
+    r"\b(gift ?cards?|google play cards?|itunes cards?|steam cards?|wire transfer|"
+    r"western union|moneygram|cashier'?s che(?:ck|que)|money order|refund the difference|"
+    r"overpa(?:y|id))\b",
+    re.IGNORECASE,
+)
+# Methods that are only risky when someone asks to be paid with them: "pay with Bitcoin
+# only" is a request, "Bitcoin price today" is a topic (real data: a crypto Q&A site).
+_RISKY_WHEN_PAYING = re.compile(
+    r"\b(bitcoin|btc|crypto|usdt|zelle|cash ?app|venmo|friends and family)\b", re.IGNORECASE
+)
+_PAYING = re.compile(r"\b(pay|paid|payment|send|sent|accept|deposit)\b", re.IGNORECASE)
+_PAYING_NEAR = 40  # characters on either side
+
+
+def mentions_offsite_contact(text: str) -> bool:
+    """Does the text ask to continue elsewhere (a phone number, an email, a chat app)?
+
+    English keywords only; other languages read as False.
+    """
+    return bool(_PHONE_RE.search(text) or _EMAIL_RE.search(text) or _OFFSITE_WORDS.search(text))
+
+
+def mentions_risky_payment(text: str) -> bool:
+    """Does the text ask for a payment method common in scams (gift cards, wires, crypto)?"""
+    if _ALWAYS_RISKY.search(text):
+        return True
+    for match in _RISKY_WHEN_PAYING.finditer(text):
+        nearby = text[max(0, match.start() - _PAYING_NEAR) : match.end() + _PAYING_NEAR]
+        if _PAYING.search(nearby):
+            return True
+    return False
+
+
+def parse_price(value: object) -> float | None:
+    """A price from a number or text such as "$1,200" or "1200.50"; None when unclear."""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return float(value) if value >= 0 else None
+    cleaned = re.sub(r"[^\d.]", "", str(value))
+    try:
+        price = float(cleaned)
+    except ValueError:
+        return None
+    return price if price >= 0 else None
+
+
 def count_mentions(text: str) -> int:
     """Count @mentions, ignoring e-mail addresses."""
     return len(_MENTION_RE.findall(text))

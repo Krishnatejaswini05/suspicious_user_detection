@@ -24,6 +24,7 @@ fields:                         # raw column name for each canonical field
   language: lang                # optional: language code such as en, te
   target_id: parent_id          # optional: what the action was aimed at
   target_owner_id: parent_author  # optional: who owns the target
+  price: price                  # optional (marketplaces): an item's asking price
   attributes: []                # optional: extra columns to keep as-is. Never list free-text columns.
 
 own_domains: []                 # optional: the platform's own sites, e.g. [reddit.com, redd.it];

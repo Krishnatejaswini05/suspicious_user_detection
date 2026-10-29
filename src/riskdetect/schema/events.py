@@ -103,6 +103,10 @@ class Content(StrictModel):
     language: str | None = None
     url_domains: tuple[str, ...] = ()
     mention_count: int = Field(default=0, ge=0)
+    # Facts read from the text by the adapter before the text is discarded (None: no text).
+    offsite_contact: bool | None = None  # asks to continue elsewhere: phone, email, WhatsApp...
+    risky_payment: bool | None = None  # gift cards, crypto, wire transfer, "refund the difference"
+    price: float | None = Field(default=None, ge=0)  # an item's asking price, when listed
 
     @field_validator("text_hash")
     @classmethod

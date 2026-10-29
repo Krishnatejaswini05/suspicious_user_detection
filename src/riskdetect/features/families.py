@@ -337,6 +337,27 @@ FEATURES: tuple[Feature, ...] = (
         ),
         requires=frozenset({"content"}),
     ),
+    # marketplace safety
+    Feature(
+        "offsite_contact_share_7d", 1, "marketplace",
+        "Share of the last 7 days' posts and messages asking to continue elsewhere "
+        "(a phone number, an email, a chat app).",
+        lambda s, t: _ratio(s.offsite_contact.count(WEEK, t), s.text_checked.count(WEEK, t)),
+        requires=frozenset({"content", "text"}),
+    ),
+    Feature(
+        "risky_payment_share_7d", 1, "marketplace",
+        "Share of the last 7 days' posts and messages bringing up payment methods common "
+        "in scams (gift cards, crypto, wire transfers, refunding an overpayment).",
+        lambda s, t: _ratio(s.risky_payment.count(WEEK, t), s.text_checked.count(WEEK, t)),
+        requires=frozenset({"content", "text"}),
+    ),
+    Feature(
+        "cheap_listings_7d", 1, "marketplace",
+        "Listings in the last 7 days priced far below the usual price in their category.",
+        lambda s, t: float(s.cheap_listings.count(WEEK, t)),
+        requires=frozenset({"content", "price"}),
+    ),
     Feature(
         "shortener_ratio_7d", 2, "content",
         "Share of the last 7 days' posts that use a URL shortener such as bit.ly.",

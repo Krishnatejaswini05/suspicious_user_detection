@@ -183,3 +183,27 @@ class TestReplySpam:
     def test_chat_platforms_without_replies_never_trigger_it(self) -> None:
         chat = {k: v for k, v in self.SPAMMER.items() if k != "reply_share_7d"}
         assert "R010_reply_spam" not in self.fired(chat)
+
+
+class TestMarketplaceRules:
+    def fired(self, row: dict[str, Any]) -> list[str]:
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        return [hit.rule.id for hit in evaluate(rules, row)]
+
+    def test_offsite_contact_with_risky_payment(self) -> None:
+        row = {"posts_7d": 8.0, "offsite_contact_share_7d": 0.8, "risky_payment_share_7d": 0.6}
+        assert "R012_offsite_risky_payment" in self.fired(row)
+
+    def test_a_phone_number_for_pickup_alone_is_fine(self) -> None:
+        row = {"posts_7d": 8.0, "offsite_contact_share_7d": 0.8, "risky_payment_share_7d": 0.0}
+        assert "R012_offsite_risky_payment" not in self.fired(row)
+
+    def test_too_good_to_be_true(self) -> None:
+        row = {"cheap_listings_7d": 3.0, "offsite_contact_share_7d": 0.5}
+        assert "R013_too_good_to_be_true" in self.fired(row)
+
+    def test_cheap_alone_is_only_a_weak_sign(self) -> None:
+        rules = load_rules(PROJECT_ROOT / "configs" / "rules.yaml")
+        hits = evaluate(rules, {"cheap_listings_7d": 10.0, "offsite_contact_share_7d": 0.0})
+        assert [h.rule.id for h in hits] == ["R014_cheap_listings"]
+        assert hits[0].rule.score_floor is None

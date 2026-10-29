@@ -29,6 +29,9 @@ URL_SHORTENERS = frozenset(
         "cutt.ly",
     }
 )
+# A listing below this share of its category's usual price is "far below" (an iPhone for
+# $150). Honest sellers clearing out cheaply do this too, so it is never enough alone.
+CHEAP_LISTING_SHARE = 0.4
 NEAR_DUPLICATE_BITS = 3  # simhashes this close count as the same text, lightly edited
 _RECENT_HASHES = 200
 _RECENT_SIMHASHES = 50
@@ -58,6 +61,11 @@ class ActorState:
     interactions: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     reports_received: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
     replies_received: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
+    # Marketplace safety: facts the adapter read from text, and listing prices.
+    text_checked: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
+    offsite_contact: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
+    risky_payment: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
+    cheap_listings: TimeSeriesCounter = field(default_factory=TimeSeriesCounter)
 
     domains: DailyTally = field(default_factory=DailyTally)
     spaces: DailyTally = field(default_factory=DailyTally)
@@ -105,6 +113,13 @@ class ActorState:
         if self.first_content_at is None or moment < self.first_content_at:
             self.first_content_at = moment
 
+        if content.offsite_contact is not None or content.risky_payment is not None:
+            self.text_checked.add(moment)
+            if content.offsite_contact:
+                self.offsite_contact.add(moment)
+            if content.risky_payment:
+                self.risky_payment.add(moment)
+
         if self._is_duplicate(content.text_hash, content.simhash):
             self.duplicates.add(moment)
         if content.text_hash is not None:
@@ -131,6 +146,11 @@ class ActorState:
                 for other in self.recent_simhashes
             )
         return False
+
+    def record_listing_price(self, moment: datetime, share_of_usual: float) -> None:
+        """A listing priced at ``share_of_usual`` of its category's usual price."""
+        if share_of_usual < CHEAP_LISTING_SHARE:
+            self.cheap_listings.add(moment)
 
     # -- what others do to this actor -------------------------------------------
 
@@ -162,6 +182,10 @@ class ActorState:
             self.interactions,
             self.reports_received,
             self.replies_received,
+            self.text_checked,
+            self.offsite_contact,
+            self.risky_payment,
+            self.cheap_listings,
         ):
             counter.prune(newest)
         for tally in (self.domains, self.spaces, self.hours):

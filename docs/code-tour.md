@@ -75,7 +75,7 @@ YAML file.)
 
 ## Session 3: Turning behavior into numbers (`features/`, about 1,000 lines)
 
-The heart of the detector: 34 numbers per user, "as of" a moment.
+The heart of the detector: 37 numbers per user, "as of" a moment.
 
 | Read | What to look for |
 |---|---|
@@ -151,7 +151,7 @@ How we test the detector itself, not just the code.
 | `synthetic/personas.py` | The fake users, good and bad, including those copied from real data |
 | `labels/outcomes.py` | The right answer for each snapshot (used only to mark, never to detect) |
 | `evaluation/run.py`, `evaluation/gates.py` | The report card: split by time, compare with lazy shortcuts, pass/fail gates |
-| `scenarios/library.py` | The 23 situations, each with its story and expected outcome; read the known gaps |
+| `scenarios/library.py` | The 30 situations (including marketplace ones), each with its story and expected outcome; read the known gaps |
 | `scenarios/behaviours.py` | How each kind of user acts, including the tricks of bad actors |
 
 **Try:** `python -m riskdetect.scenarios` and read `data/reports/scenarios.md`.

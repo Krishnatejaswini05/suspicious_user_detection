@@ -92,3 +92,16 @@ def test_schema_inference() -> None:
 
 def test_pyarrow_is_not_needed() -> None:
     assert "pyarrow" not in sys.modules
+
+
+def test_files_from_before_a_column_existed_read_it_as_none(tmp_path: Path) -> None:
+    old = {"id": "VARCHAR", "score": "DOUBLE"}
+    new = {**old, "price": "DOUBLE"}
+    write_parquet(tmp_path / "a.parquet", [{"id": "old", "score": 1.0}], old)
+    write_parquet(tmp_path / "b.parquet", [{"id": "new", "score": 2.0, "price": 9.5}], new)
+    rows = list(
+        read_parquet((tmp_path / "*.parquet").as_posix(), columns=["id", "price"], order_by="id")
+    )
+    assert rows == [{"id": "new", "price": 9.5}, {"id": "old", "price": None}]
+    only_old = list(read_parquet(tmp_path / "a.parquet", columns=["id", "price"]))
+    assert only_old == [{"id": "old", "price": None}]

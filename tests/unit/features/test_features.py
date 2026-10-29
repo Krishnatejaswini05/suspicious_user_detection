@@ -256,3 +256,54 @@ class TestJoiningIn:
                 )
             )
         assert features(engine, T0)["reply_share_7d"] is None
+
+
+class TestMarketplace:
+    def listing(
+        self, make_event: EventFactory, actor: str, at: datetime, price: float, **signs: Any
+    ) -> Any:
+        return make_event(
+            actor_id=actor,
+            occurred_at=at,
+            space_id="m/phones",
+            content={"kind": "listing", "price": price, **signs},
+        )
+
+    def test_far_too_cheap_compared_with_earlier_listings(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        for i in range(12):  # other sellers set the usual price, about 600
+            seller = f"s{i}"
+            at = T0 - timedelta(days=3, minutes=i)
+            engine.apply(self.listing(make_event, seller, at, 550.0 + 10 * i))
+        for minute in (30, 20, 10):
+            engine.apply(self.listing(make_event, "u1", T0 - timedelta(minutes=minute), 150.0))
+        assert features(engine, T0)["cheap_listings_7d"] == 3.0
+
+    def test_no_usual_price_yet_means_nothing_is_cheap(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        engine.apply(self.listing(make_event, "u1", T0 - timedelta(minutes=5), 1.0))
+        assert features(engine, T0)["cheap_listings_7d"] == 0.0
+
+    def test_offsite_and_payment_shares(
+        self, engine: FeatureEngine, make_event: EventFactory
+    ) -> None:
+        signs = [(True, True), (True, False), (False, False), (False, False)]
+        for minute, (offsite, risky) in enumerate(signs):
+            engine.apply(
+                post(
+                    make_event,
+                    T0 - timedelta(minutes=minute + 1),
+                    offsite_contact=offsite,
+                    risky_payment=risky,
+                )
+            )
+        values = features(engine, T0)
+        assert values["offsite_contact_share_7d"] == pytest.approx(2 / 4)
+        assert values["risky_payment_share_7d"] == pytest.approx(1 / 4)
+
+    def test_unknown_without_text(self, engine: FeatureEngine, make_event: EventFactory) -> None:
+        for minute in range(4):
+            engine.apply(post(make_event, T0 - timedelta(minutes=minute + 1)))
+        assert features(engine, T0)["offsite_contact_share_7d"] is None

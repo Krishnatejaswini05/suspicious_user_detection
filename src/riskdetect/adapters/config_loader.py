@@ -128,6 +128,7 @@ class FieldMap(_ConfigModel):
     language: str | None = None
     target_id: str | None = None
     target_owner_id: str | None = None
+    price: str | None = None  # an item's asking price (marketplaces)
     # Raw columns copied into Event.attributes. Empty by default (privacy by default):
     # only columns listed here are kept, so free-text columns cannot leak in.
     attributes: tuple[str, ...] = ()

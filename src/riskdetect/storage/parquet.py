@@ -201,9 +201,7 @@ def _staged(row: Row, columns: Mapping[str, str]) -> Row:
 def describe(source: Path | str, con: duckdb.DuckDBPyConnection | None = None) -> dict[str, str]:
     """Column name -> DuckDB type for a Parquet file or glob."""
     con = con or connect()
-    rows = con.execute(
-        f"DESCRIBE SELECT * FROM read_parquet({sql_path(source)}, hive_partitioning = false)"
-    ).fetchall()
+    rows = con.execute(f"DESCRIBE SELECT * FROM {_scan(source)}").fetchall()
     return {str(name): str(kind) for name, kind, *_ in rows}
 
 
@@ -222,23 +220,26 @@ def read_parquet(
     ``where`` and ``order_by`` are SQL fragments over the file's columns; values go in
     ``params``. ``columns`` limits (and orders) the columns returned. Timezone-aware
     timestamp columns can be compared as epoch microseconds with ``epoch_us(column)``.
+
+    Files written by older versions may lack newer columns: across a glob, columns are
+    matched by name, and a requested column no file has is returned as None.
     """
     con = con or connect()
-    types = describe(source, con)
-    if columns is not None:
-        types = {name: types[name] for name in columns}
-    tz_columns = {name for name, kind in types.items() if kind in _TZ_TYPES}
+    present = describe(source, con)
+    names = list(columns) if columns is not None else list(present)
+    tz_columns = {name for name in names if present.get(name) in _TZ_TYPES}
     select = ", ".join(
-        f"epoch_us({_ident(name)}) AS {_ident(name)}" if name in tz_columns else _ident(name)
-        for name in types
+        f"epoch_us({_ident(name)}) AS {_ident(name)}"
+        if name in tz_columns
+        else (_ident(name) if name in present else f"NULL AS {_ident(name)}")
+        for name in names
     )
-    query = f"SELECT {select} FROM read_parquet({sql_path(source)}, hive_partitioning = false)"
+    query = f"SELECT {select} FROM {_scan(source)}"
     if where:
         query += f" WHERE {where}"
     if order_by:
         query += f" ORDER BY {order_by}"
     cursor = con.execute(query, list(params))
-    names = list(types)
     while batch := cursor.fetchmany(batch_rows):
         for values in batch:
             row = dict(zip(names, values, strict=True))
@@ -246,6 +247,10 @@ def read_parquet(
                 if row[name] is not None:
                     row[name] = from_micros(row[name])
             yield row
+
+
+def _scan(source: Path | str) -> str:
+    return f"read_parquet({sql_path(source)}, hive_partitioning = false, union_by_name = true)"
 
 
 def read_all(source: Path | str, con: duckdb.DuckDBPyConnection | None = None) -> list[Row]:

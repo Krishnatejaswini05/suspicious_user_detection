@@ -9,7 +9,13 @@ import random
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from riskdetect.adapters.transforms import extract_domains, hash_text, simhash_text
+from riskdetect.adapters.transforms import (
+    extract_domains,
+    hash_text,
+    mentions_offsite_contact,
+    mentions_risky_payment,
+    simhash_text,
+)
 from riskdetect.schema import Event
 
 PLATFORM = "scenario"
@@ -96,8 +102,12 @@ class World:
         reply: bool = False,
         space: str | None = None,
         to: tuple[str, str] | None = None,
+        price: float | None = None,
     ) -> str:
-        """A post (or a reply to someone else's content). Returns the new content's id."""
+        """A post (or a reply to someone else's content). Returns the new content's id.
+
+        A post with a ``price`` is a marketplace listing.
+        """
         content_id = self._id("c")
         target = None
         if reply:
@@ -119,6 +129,9 @@ class World:
                     "simhash": simhash_text(text),
                     "length": len(text),
                     "url_domains": extract_domains(text),
+                    "offsite_contact": mentions_offsite_contact(text),
+                    "risky_payment": mentions_risky_payment(text),
+                    "price": price,
                 },
             )
         )

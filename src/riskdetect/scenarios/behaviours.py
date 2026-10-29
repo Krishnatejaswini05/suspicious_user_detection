@@ -245,3 +245,120 @@ def controversial_poster(
                 )
             for person in rng.sample(crowd, 2):
                 world.report(person, moment + timedelta(minutes=rng.uniform(5, 60)), item)
+
+
+# -- marketplace ------------------------------------------------------------------------------
+
+# Categories (spaces) and their usual asking prices.
+CATEGORIES = {
+    "m/phones": 600.0,
+    "m/laptops": 900.0,
+    "m/bikes": 300.0,
+    "m/furniture": 150.0,
+    "m/cameras": 500.0,
+}
+_ITEMS = {
+    "m/phones": "phone",
+    "m/laptops": "laptop",
+    "m/bikes": "bike",
+    "m/furniture": "sofa",
+    "m/cameras": "camera",
+}
+_QUESTIONS = (
+    "Is this still available?",
+    "Hi, can I see it this weekend?",
+    "Would you take a little less?",
+    "Does it come with the charger?",
+)
+
+
+def phone_number(world: World) -> str:
+    return f"555-{world.rng.randint(100, 999)}-{world.rng.randint(1000, 9999)}"
+
+
+def list_item(
+    world: World, actor: str, when: datetime, category: str, share_of_usual: float, note: str
+) -> str:
+    """One listing: an item in a category at ``share_of_usual`` of its usual price."""
+    price = round(CATEGORIES[category] * share_of_usual, 2)
+    text = f"{_ITEMS[category].capitalize()} for sale. {world.chatter((6, 14))} {note}"
+    return world.write(actor, when, text, space=category, price=price)
+
+
+def market_crowd(world: World, sellers: int = 30, buyers: int = 20) -> None:
+    """Ordinary sellers listing at normal prices, and buyers asking about listings."""
+    rng = world.rng
+    listings: list[tuple[datetime, str, str]] = []  # (when, item, seller)
+    for i in range(sellers):
+        seller = f"seller{i}"
+        world.signup(seller, at(-200 - i))
+        for day in range(0, 28, 3):
+            category = rng.choice(list(CATEGORIES))
+            moment = at(day, rng.uniform(8, 21))
+            item = list_item(
+                world, seller, moment, category, rng.uniform(0.6, 1.4), "Pick up in town."
+            )
+            listings.append((moment, item, seller))
+    for i in range(buyers):
+        buyer = f"buyer{i}"
+        world.signup(buyer, at(-150 - i))
+        for day in range(0, 28, 2):
+            moment = at(day, rng.uniform(9, 22))
+            listed = [(item, seller) for when, item, seller in listings if when < moment]
+            if listed:  # only ask about listings that already exist
+                world.write(
+                    buyer, moment, rng.choice(_QUESTIONS), reply=True, to=rng.choice(listed)
+                )
+
+
+def fake_seller(world: World, actor: str, day: int, listings: int, *, payment: bool = True) -> None:
+    """New account: expensive items far too cheap, then pushes buyers to chat and pay elsewhere."""
+    rng = world.rng
+    world.signup(actor, at(day))
+    pay = " Payment by gift card or Bitcoin only." if payment else ""
+    for i in range(listings):
+        category = rng.choice(["m/phones", "m/laptops", "m/cameras"])
+        note = f"Brand new, sealed. Text me at {phone_number(world)} to buy.{pay}"
+        item = list_item(world, actor, at(day, 9 + i), category, rng.uniform(0.2, 0.35), note)
+        for j in range(2):  # answering interested buyers
+            reply = f"Still available! Message me on WhatsApp {phone_number(world)}.{pay}"
+            world.write(actor, at(day, 9.5 + i + j * 0.2), reply, reply=True, to=(item, actor))
+
+
+def overpayment_buyer(world: World, actor: str, day: int, messages: int) -> None:
+    """A fake buyer: offers to overpay by cheque and asks sellers to refund the difference."""
+    world.signup(actor, at(day))
+    for i in range(messages):
+        target = world.someone_elses_content(actor)
+        text = (
+            "I want it, I will send a cashier's check for more than the price, "
+            "please refund the difference. "
+            f"Email me at buyer{world.rng.randint(1, 999)}@mail.example"
+        )
+        world.write(actor, at(day, 9 + i * 0.7), text, reply=True, to=target)
+
+
+def honest_listings(
+    world: World,
+    actor: str,
+    first_day: int,
+    count: int,
+    *,
+    share_of_usual: tuple[float, float] = (0.8, 1.2),
+    note: str = "Pick up in town.",
+    per_day: int = 3,
+) -> None:
+    """Honest listings, answered politely; prices and notes vary by situation."""
+    rng = world.rng
+    for i in range(count):
+        day = first_day + i // per_day
+        moment = at(day, 9 + 2 * (i % per_day) + rng.uniform(0, 1))
+        category = rng.choice(list(CATEGORIES))
+        item = list_item(world, actor, moment, category, rng.uniform(*share_of_usual), note)
+        world.write(
+            actor,
+            moment + timedelta(hours=1),
+            "Yes, still available.",
+            reply=True,
+            to=(item, actor),
+        )
